@@ -1,0 +1,376 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /*
+   * PWA App Shell — treat the browser viewport like a native app container.
+   * - overflow: hidden → prevents the native browser from scrolling the page
+   * - overscroll-behavior: none → disables the iOS rubber-band / Android glow effect
+   * - height: 100% → ensures the layout fills exactly the viewport (no extra space to scroll)
+   * - touch-action: pan-x pan-y → allow panning only inside designated scroll areas
+   */
+  html.pwa-body-lock {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body.pwa-body-lock {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    /* Prevent iOS momentum scroll on body — only allowed inside .app-scroll */
+    position: fixed;
+    width: 100%;
+    /* Safe area: account for notch (top) and home indicator (bottom) */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* Designated scroll container — only elements with this class can scroll */
+  .app-scroll {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain; /* prevent scroll chaining to parent */
+  }
+
+  /* Hide scrollbars for a native look, but keep functionality */
+  .app-scroll::-webkit-scrollbar,
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .app-scroll,
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  /* Prevent text selection on UI elements like native apps */
+  .pwa-no-select {
+    -webkit-user-select: none; /* Safari */
+    -ms-user-select: none; /* IE 10 and IE 11 */
+    user-select: none; /* Standard syntax */
+  }
+
+  /* Remove arrows/spinners from number inputs globally */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield; /* Firefox */
+  }
+
+  .job-list-card {
+    content-visibility: auto;
+    contain-intrinsic-size: 62px;
+  }
+
+  :root {
+    --background: 220 20% 98.5%;      /* Premium light gray canvas */
+    --foreground: 220 40% 12%;        /* Deep Charcoal */
+    --card: 0 0% 100%;                /* Pure white cards */
+    --card-foreground: 220 40% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 40% 12%;
+    --primary: 356 70% 41%;           /* Brand Red #b21f29 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 15% 95%;         /* Soft gray secondary */
+    --secondary-foreground: 220 40% 12%;
+    --muted: 220 15% 95%;
+    --muted-foreground: 220 15% 45%;
+    --accent: 356 60% 96%;            /* Red-tinted soft accent */
+    --accent-foreground: 356 70% 41%;
+    --destructive: 354.3 70.5% 53.5%;
+    --destructive-foreground: 355.7 100% 97.3%;
+    --border: 220 15% 90%;            /* Clean light grey borders */
+    --input: 220 15% 90%;
+    --ring: 356 70% 41%;
+    --chart-1: 356 70% 41%;
+    --chart-2: 220 30% 30%;
+    --chart-3: 220 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.75rem;                /* Premium rounded corners */
+  }
+
+  .dark {
+    --background: 356 18% 7%;         /* Charcoal black with warm red undertone */
+    --foreground: 0 0% 98%;
+    --card: 356 12% 10%;              /* Rich dark red-tinted cards */
+    --card-foreground: 0 0% 98%;
+    --popover: 356 12% 10%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 356 80% 55%;           /* Vibrant brand red */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 356 10% 14%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 356 10% 14%;
+    --muted-foreground: 356 8% 65%;
+    --accent: 356 50% 13%;
+    --accent-foreground: 356 80% 80%;
+    --destructive: 354.3 70.5% 53.5%;
+    --destructive-foreground: 207 20% 98%;
+    --border: 356 10% 15%;
+    --input: 356 10% 15%;
+    --ring: 356 80% 55%;
+    --chart-1: 356 80% 55%;
+    --chart-2: 207 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body, input, button, select, textarea {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Smooth interactive inputs focus ring and transition glow */
+  input, textarea, select, button {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  input:focus, textarea:focus, select:focus {
+    outline: none !important;
+    border-color: hsl(var(--primary)) !important;
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.1) !important;
+  }
+
+  /* Gorgeous premium bg-card shadow glow */
+  .bg-card {
+    box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.02), 0 4px 20px -2px rgba(178, 31, 41, 0.02);
+  }
+}
+
+/* Custom Form Styles */
+.form-section {
+  @apply bg-card border border-border rounded-lg p-6 space-y-4;
+}
+
+.form-section-header {
+  @apply pb-4 border-b border-border;
+}
+
+.form-section-title {
+  @apply text-lg font-semibold flex items-center gap-2;
+}
+
+.input-group {
+  @apply space-y-2;
+}
+
+.input-label {
+  @apply text-sm font-medium text-foreground;
+}
+
+/* Animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* CV Preview Styles - A4 Page Simulation */
+.cv-paper {
+  @apply bg-white shadow-lg;
+}
+
+/* A4 Page Container */
+.cv-a4-page {
+  width: 210mm;
+  height: 297mm;
+  padding: 12mm 15mm 18mm;
+  background: white;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.cv-a4-content-window {
+  height: 100%;
+  overflow: hidden;
+}
+
+.cv-preview-frame {
+  --cv-preview-scale: 0.4;
+  --cv-a4-w-mm: 210;
+  --cv-a4-h-mm: 297;
+  width: calc(var(--cv-a4-w-mm) * 1mm * var(--cv-preview-scale));
+  overflow: visible;
+}
+
+.cv-preview-frame .cv-a4-pages-shell {
+  width: calc(var(--cv-a4-w-mm) * 1mm * var(--cv-preview-scale));
+  height: calc(
+    (
+        var(--cv-page-count) * var(--cv-a4-h-mm) * 1mm +
+        (var(--cv-page-count) - 1) * 24px
+      ) *
+      var(--cv-preview-scale)
+  );
+  position: relative;
+}
+
+@media (min-width: 640px) {
+  .cv-preview-frame {
+    --cv-preview-scale: 0.55;
+  }
+}
+
+@media (min-width: 1024px) {
+  .cv-preview-frame {
+    --cv-preview-scale: 0.48;
+  }
+}
+
+@media (min-width: 1280px) {
+  .cv-preview-frame {
+    --cv-preview-scale: 0.62;
+  }
+}
+
+.cv-preview-frame .cv-a4-pages {
+  width: 210mm;
+  position: absolute;
+  inset: 0 auto auto 0;
+  transform: scale(var(--cv-preview-scale));
+  transform-origin: top left;
+}
+
+.template-card-preview .cv-a4-pages-shell {
+  width: 100%;
+  height: 100%;
+}
+
+.template-card-preview .cv-a4-pages {
+  display: block;
+  width: 210mm;
+  margin: 0;
+  padding-bottom: 20px;
+  transform: scale(0.352);
+  transform-origin: top left;
+}
+
+.template-card-preview .cv-a4-page {
+  box-shadow: none;
+  padding: 8mm 10mm 12mm;
+}
+
+.template-card-preview .cv-a4-page:not(:first-child) {
+  display: none;
+}
+
+.template-card-preview .cv-a4-page::after {
+  content: "";
+}
+
+@media (min-width: 640px) {
+  .template-card-preview .cv-a4-pages {
+    margin: 0;
+    padding-bottom: 24px;
+    transform: scale(0.402);
+  }
+
+  .template-card-preview .cv-a4-page {
+    padding: 9mm 11mm 14mm;
+  }
+}
+
+@media (min-width: 1024px) {
+  .cv-preview-frame {
+    --cv-preview-scale: 0.48;
+  }
+}
+
+@media (min-width: 1280px) {
+  .cv-preview-frame {
+    --cv-preview-scale: 0.62;
+  }
+}
+
+@media (min-width: 1536px) {
+  .cv-preview-frame {
+    --cv-preview-scale: 0.75;
+  }
+}
+
+.cv-a4-page + .cv-a4-page {
+  margin-top: 24px;
+}
+
+/* Page number indicator */
+.cv-a4-page::after {
+  content: attr(data-page);
+  position: absolute;
+  bottom: 8mm;
+  right: 15mm;
+  font-size: 9px;
+  color: #ccc;
+  font-family: Arial, sans-serif;
+}
+
+/* Paginated container: columns-based auto pagination */
+.cv-paginated {
+  width: 210mm;
+  column-width: 210mm;
+  column-count: auto;
+  column-fill: auto;
+  column-gap: 24px;
+}
+
+.cv-paginated > .cv-a4-page {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Prevent sections from breaking across pages */
+.cv-section-break {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Print styles */
+@media print {
+  .cv-a4-page {
+    box-shadow: none;
+    margin: 0;
+    page-break-after: always;
+  }
+  .cv-a4-page:last-child {
+    page-break-after: auto;
+  }
+}
+
+/* Button Styles */
+.btn-add {
+  @apply inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-md transition-colors;
+}
+
+.btn-remove {
+  @apply inline-flex items-center justify-center w-8 h-8 text-destructive hover:bg-destructive/10 rounded-md transition-colors;
+}

@@ -1,0 +1,152 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model AppUser {
+  id            String    @id @db.Uuid
+  email         String    @unique
+  password_hash String
+  password_salt String
+  role            String    @default("user")
+  commission_rate Float     @default(5000) // Default komisi per m3 untuk sales ini
+  created_at      String
+  updated_at      String
+  sessions      AppSession[]
+  api_keys      ApiKey[]
+  clients       Client[]
+  invoices      Invoice[]
+  templates     InvoiceTemplate[]
+  preset_items  InvoicePresetItem[]
+
+  @@map("app_users")
+}
+
+model AppSession {
+  id         String   @id @db.Uuid
+  user_id    String   @db.Uuid
+  token_hash String   @unique
+  expires_at String
+  created_at String
+  user       AppUser  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("app_sessions")
+}
+
+model Client {
+  id         String    @id @default(uuid()) @db.Uuid
+  user_id    String    @db.Uuid
+  name       String
+  email      String?
+  phone      String?
+  company    String?
+  address    String?
+  notes      String?
+  created_at String
+  updated_at String
+  user       AppUser   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  invoices   Invoice[]
+
+  @@index([user_id, name])
+  @@map("clients")
+}
+
+model Invoice {
+  id             String        @id @default(uuid()) @db.Uuid
+  user_id        String        @db.Uuid
+  client_id      String        @db.Uuid
+  invoice_number String
+  status         String        @default("draft")
+  currency       String        @default("IDR")
+  issue_date     String
+  due_date       String?
+  paid_date      String?
+  subtotal       Float         @default(0)
+  discount       Float         @default(0)
+  tax            Float         @default(0)
+  fee            Float         @default(0)  // Fee/biaya tambahan yang dibebankan (dikurangi dari margin, bukan dari total customer)
+  total          Float         @default(0)
+  notes          String?
+  terms          String?
+  template_id    String?       @db.Uuid
+  created_at     String
+  updated_at     String
+  version        Int           @default(1)
+  user           AppUser       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  client         Client        @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  template       InvoiceTemplate? @relation(fields: [template_id], references: [id], onDelete: SetNull)
+  items          InvoiceItem[]
+
+  @@unique([user_id, invoice_number])
+  @@index([user_id, created_at])
+  @@index([user_id, status])
+  @@index([client_id])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id              String  @id @default(uuid()) @db.Uuid
+  invoice_id      String  @db.Uuid
+  description     String
+  quantity        Float   @default(1)
+  actual_quantity Float?  // Volume aktual yang terkirim (diisi admin saat selesai, bisa beda dari quantity)
+  unit_price      Float   @default(0)
+  ajm_price       Float?  // Harga net perusahaan untuk hitung fee eksternal
+  buy_in_price    Float   @default(0)
+  commission_rate Float   @default(5000) // Komisi per m3 khusus untuk invoice ini
+  line_total      Float   @default(0)
+  sort_order      Int     @default(0)
+  invoice         Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+
+  @@index([invoice_id, sort_order])
+  @@map("invoice_items")
+}
+
+model ApiKey {
+  id         String   @id @db.Uuid
+  user_id    String   @db.Uuid
+  key        String   @unique
+  created_at String
+  user       AppUser  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("api_keys")
+}
+
+model InvoiceTemplate {
+  id           String   @id @default(uuid()) @db.Uuid
+  user_id      String   @db.Uuid
+  name         String
+  html_content String
+  is_default   Boolean  @default(false)
+  created_at   String
+  updated_at   String
+
+  user         AppUser  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  invoices     Invoice[]
+
+  @@index([user_id])
+  @@map("invoice_templates")
+}
+
+model InvoicePresetItem {
+  id           String   @id @default(uuid()) @db.Uuid
+  user_id      String   @db.Uuid
+  name         String
+  description  String   @default("")
+  unit_price   Float    @default(0)
+  buy_in_price Float    @default(0)  // Harga beli ke supplier (HPP), diisi admin
+  tax_rate     Float    @default(0)
+  created_at   String
+  updated_at   String
+  user         AppUser  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("invoice_preset_items")
+}
