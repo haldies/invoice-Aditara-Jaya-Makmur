@@ -161,11 +161,11 @@ export function SelesaiView({ invoice, onUpdated, isSales = false }: Props) {
 
       {/* PDF Actions */}
       {isSelesai && (
-        <div className="grid grid-cols-2 gap-3">
-          <Button onClick={() => download("receipt")} disabled={isPdfLoading} variant="outline" className="h-11 font-bold text-xs gap-1.5 border-emerald-500 text-emerald-600 hover:bg-emerald-50">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button onClick={() => download("receipt")} disabled={isPdfLoading} variant="outline" className="w-full sm:w-1/2 h-11 font-bold text-xs gap-1.5 border-emerald-500 text-emerald-600 hover:bg-emerald-50">
             <Receipt className="h-4 w-4" /> Cetak Kwitansi
           </Button>
-          <Button onClick={() => download("invoice")} disabled={isPdfLoading} variant="outline" className="h-11 font-bold text-xs gap-1.5 border-primary text-primary hover:bg-primary/10">
+          <Button onClick={() => download("invoice")} disabled={isPdfLoading} variant="outline" className="w-full sm:w-1/2 h-11 font-bold text-xs gap-1.5 border-primary text-primary hover:bg-primary/10">
             <Download className="h-4 w-4" /> Cetak Invoice
           </Button>
         </div>

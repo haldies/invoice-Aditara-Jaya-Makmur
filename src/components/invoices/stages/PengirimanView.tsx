@@ -101,11 +101,13 @@ export function PengirimanView({ invoice, onUpdated }: Props) {
             {invoice.client?.phone && <span> · {invoice.client.phone}</span>}
           </p>
           {invoice.notes && <p className="text-xs text-muted-foreground mt-0.5">Lokasi: {invoice.notes}</p>}
-          {invoice.due_date && <p className="text-xs text-muted-foreground">Tgl Pengiriman: {fmtDate(invoice.due_date)}</p>}
+          {invoice.due_date && <p className="text-xs text-muted-foreground mt-0.5">Tgl Pengiriman: {fmtDate(invoice.due_date)}</p>}
         </div>
-        <Button onClick={download} disabled={isPdfLoading} variant="outline" size="sm" className="h-9 text-xs font-bold gap-1.5 border-primary text-primary hover:bg-primary/10 shrink-0">
-          <Download className="h-3.5 w-3.5" /> Cetak Invoice
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-2 sm:mt-0 shrink-0">
+          <Button onClick={download} disabled={isPdfLoading} variant="outline" size="sm" className="h-9 w-full sm:w-auto text-xs font-bold gap-1.5 border-primary text-primary hover:bg-primary/10">
+            <Download className="h-3.5 w-3.5" /> Cetak Invoice
+          </Button>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-[1fr_300px] gap-6 items-start">
@@ -139,13 +141,13 @@ export function PengirimanView({ invoice, onUpdated }: Props) {
                       <p className="font-semibold text-xs text-foreground line-clamp-2" title={item.description}>{item.description}</p>
                       <p className="text-[10px] text-muted-foreground">{fmt(item.unit_price)}/m³ · HPP: {fmt(item.buy_in_price)}</p>
                     </div>
-                    <div className="flex items-center justify-between sm:justify-center">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between sm:justify-center gap-1 sm:gap-2">
                       <span className="text-[10px] text-muted-foreground uppercase font-bold sm:hidden">Vol Deal</span>
                       <span className="text-center text-xs font-bold text-muted-foreground">
                         {Number(dealQty).toLocaleString("id-ID")}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between sm:justify-center">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between sm:justify-center gap-1 sm:gap-2">
                       <span className="text-[10px] text-primary uppercase font-bold sm:hidden">Vol Aktual</span>
                       <Input
                         type="number" min="0" step="any"
@@ -158,7 +160,7 @@ export function PengirimanView({ invoice, onUpdated }: Props) {
                         className={`h-8 w-28 sm:w-full text-center text-xs px-1 font-bold ${selisih != null && selisih < 0 ? "border-amber-400 bg-amber-50" : selisih != null && selisih > 0 ? "border-blue-300 bg-blue-50" : "border-slate-300"}`}
                       />
                     </div>
-                    <div className="flex items-center justify-between sm:justify-end">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between sm:justify-end gap-1 sm:gap-2">
                       <span className="text-[10px] text-muted-foreground uppercase font-bold sm:hidden">Komisi/m³</span>
                       <Input
                         type="number" min="0" step="any"

@@ -78,21 +78,21 @@ export function POView({ invoice, onUpdated }: Props) {
             {invoice.client?.phone && <span> · {invoice.client.phone}</span>}
           </p>
           {invoice.notes && <p className="text-xs text-muted-foreground mt-0.5">Lokasi: {invoice.notes}</p>}
-          <div className="mt-4 flex items-center gap-3">
+          <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
             <Label className="text-xs font-bold text-muted-foreground">Tgl Pengiriman:</Label>
             <Input 
               type="date" 
               value={dueDate} 
               onChange={(e) => saveDueDate(e.target.value)} 
-              className="h-8 text-xs w-40" 
+              className="h-8 text-xs w-full sm:w-40" 
             />
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => download("po")} disabled={isPdfLoading} variant="outline" size="sm" className="h-9 text-xs font-bold gap-1.5 border-primary text-primary hover:bg-primary/10">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-2 sm:mt-0 shrink-0">
+          <Button onClick={() => download("po")} disabled={isPdfLoading} variant="outline" size="sm" className="h-9 w-full sm:w-auto text-xs font-bold gap-1.5 border-primary text-primary hover:bg-primary/10">
             Cetak PO
           </Button>
-          <Button onClick={() => download("invoice")} disabled={isPdfLoading} variant="outline" size="sm" className="h-9 text-xs font-bold gap-1.5 border-primary text-primary hover:bg-primary/10">
+          <Button onClick={() => download("invoice")} disabled={isPdfLoading} variant="outline" size="sm" className="h-9 w-full sm:w-auto text-xs font-bold gap-1.5 border-primary text-primary hover:bg-primary/10">
             Cetak Invoice
           </Button>
         </div>
