@@ -114,6 +114,21 @@ const styles = StyleSheet.create({
 const formatCurrency = (amount: number, currency: string) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency, minimumFractionDigits: 0 }).format(amount);
 
+const formatIndonesianDate = (dateStr: string) => {
+  if (!dateStr) return "";
+  try {
+    const parts = dateStr.split("T")[0].split("-");
+    if (parts.length !== 3) return dateStr.split("T")[0];
+    const months = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+    return `${parseInt(parts[2], 10)} ${months[parseInt(parts[1], 10) - 1]} ${parts[0]}`;
+  } catch (e) {
+    return dateStr.split("T")[0];
+  }
+};
+
 interface Props { invoice: Invoice; company: CompanyProfile; includePpn: boolean; }
 
 export const TemplateCorporate = ({ invoice, company, includePpn }: Props) => {
@@ -141,10 +156,10 @@ export const TemplateCorporate = ({ invoice, company, includePpn }: Props) => {
             <Text style={styles.invoiceTitleGold}>INVOICE</Text>
             <Text style={styles.invoiceNumber}>{invoice.invoice_number}</Text>
             <Text style={styles.dateLabel}>TANGGAL</Text>
-            <Text style={styles.dateValue}>{invoice.issue_date}</Text>
+            <Text style={styles.dateValue}>{formatIndonesianDate(invoice.issue_date)}</Text>
             {invoice.due_date && <>
               <Text style={styles.dateLabel}>JATUH TEMPO</Text>
-              <Text style={styles.dateValue}>{invoice.due_date}</Text>
+              <Text style={styles.dateValue}>{formatIndonesianDate(invoice.due_date)}</Text>
             </>}
           </View>
         </View>

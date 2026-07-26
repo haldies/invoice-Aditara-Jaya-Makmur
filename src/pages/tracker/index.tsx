@@ -11,7 +11,13 @@ function TrackerDashboardPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  if (loading) {
+  useEffect(() => {
+    if (!loading && user?.role === "sales") {
+      router.replace("/tracker/invoices");
+    }
+  }, [user, loading, router]);
+
+  if (loading || (user && user.role === "sales")) {
     return (
       <div className="p-8 text-center text-sm text-muted-foreground">
         Memuat...

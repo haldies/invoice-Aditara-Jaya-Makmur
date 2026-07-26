@@ -16,7 +16,12 @@ export function hashPassword(password: string, salt = crypto.randomBytes(16).toS
 
 export function verifyPassword(password: string, salt: string, expectedHash: string) {
   const { hash } = hashPassword(password, salt);
-  return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(expectedHash, "hex"));
+  const hashBuffer = Buffer.from(hash, "hex");
+  const expectedHashBuffer = Buffer.from(expectedHash, "hex");
+  if (hashBuffer.length !== expectedHashBuffer.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(hashBuffer, expectedHashBuffer);
 }
 
 export function hashSessionToken(token: string) {

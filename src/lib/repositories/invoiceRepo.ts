@@ -7,12 +7,13 @@ import {
   InvoiceFilters,
   InvoiceInput,
   InvoiceStatus,
+  PaginatedResult,
 } from "../../types/invoice";
 
 const invoiceInclude = {
   client: true,
   items: { orderBy: { sort_order: "asc" as const } },
-  user: { select: { email: true } },
+  user: { select: { email: true, phone: true } },
 };
 
 type InvoiceRow = Prisma.InvoiceGetPayload<{ include: typeof invoiceInclude }>;
@@ -145,24 +146,76 @@ async function resolveClient(actor: Actor, data: InvoiceInput) {
 export async function listInvoices(
   actor: Actor,
   filters: InvoiceFilters = {}
-): Promise<Invoice[]> {
+): Promise<PaginatedResult<Invoice>> {
   const where: Prisma.InvoiceWhereInput = ownershipWhere(actor);
-  if (filters.status) where.status = filters.status;
-  if (filters.client_id) where.client_id = filters.client_id;
+  
+  if (filters.status && filters.status !== "all") {
+    where.status = filters.status;
+  }
+  if (filters.client_id) {
+    where.client_id = filters.client_id;
+  }
+  if (filters.sales && filters.sales !== "all") {
+    where.user = { email: filters.sales };
+  }
+  if (filters.product && filters.product !== "all") {
+    where.items = {
+      some: { description: { contains: filters.product, mode: "insensitive" } }
+    };
+  }
+  if (filters.city && filters.city !== "all") {
+    where.OR = [
+      ...(where.OR || []),
+      { client: { address: { contains: filters.city, mode: "insensitive" } } },
+      { notes: { contains: filters.city, mode: "insensitive" } }
+    ];
+  }
+  
   if (filters.search) {
     where.OR = [
+      ...(where.OR || []),
       { invoice_number: { contains: filters.search, mode: "insensitive" } },
       { client: { name: { contains: filters.search, mode: "insensitive" } } },
       { client: { company: { contains: filters.search, mode: "insensitive" } } },
     ];
   }
 
-  const rows = await prisma.invoice.findMany({
-    where,
-    include: invoiceInclude,
-    orderBy: { created_at: "desc" },
-  });
-  return rows.map(rowToInvoice);
+  // Sorting
+  const orderBy: any[] = [];
+  if (filters.sort === "total_high") {
+    orderBy.push({ total: "desc" });
+  } else if (filters.sort === "total_low") {
+    orderBy.push({ total: "asc" });
+  } else if (filters.sort === "oldest") {
+    orderBy.push({ issue_date: "asc" });
+  } else {
+    // Default or "newest"
+    orderBy.push({ issue_date: "desc" });
+    orderBy.push({ created_at: "desc" }); // fallback secondary sort
+  }
+
+  // Pagination
+  const page = Math.max(1, filters.page || 1);
+  const limit = Math.max(1, filters.limit || 50);
+  const skip = (page - 1) * limit;
+
+  const [total, rows] = await Promise.all([
+    prisma.invoice.count({ where }),
+    prisma.invoice.findMany({
+      where,
+      include: invoiceInclude,
+      orderBy,
+      skip,
+      take: limit,
+    })
+  ]);
+
+  return {
+    data: rows.map(rowToInvoice),
+    total,
+    page,
+    totalPages: Math.ceil(total / limit) || 1,
+  };
 }
 
 export async function listClients(actor: Actor): Promise<Client[]> {

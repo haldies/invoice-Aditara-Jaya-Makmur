@@ -1,8 +1,9 @@
-export type AppRole = "owner" | "admin" | "manager" | "user";
+export type AppRole = "owner" | "admin" | "manager" | "user" | "sales";
 
 export interface AppUser {
   id: string;
   email: string | null;
+  phone: string | null;
   role: AppRole;
   commission_rate: number;
   created_at: string;
@@ -80,6 +81,7 @@ export interface Invoice {
   items: InvoiceItem[];
   user?: {
     email: string | null;
+    phone: string | null;
   };
 }
 
@@ -118,9 +120,22 @@ export interface InvoiceInput {
 }
 
 export interface InvoiceFilters {
-  status?: InvoiceStatus;
+  status?: InvoiceStatus | "all";
   search?: string;
   client_id?: string;
+  sales?: string;
+  product?: string;
+  city?: string;
+  sort?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  totalPages: number;
 }
 
 export const INVOICE_STATUS_CONFIG: Record<

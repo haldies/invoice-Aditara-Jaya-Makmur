@@ -12,9 +12,7 @@ export default async function handler(
   if (req.method === "GET") {
     try {
       const items = await prisma.invoicePresetItem.findMany({
-        where: user.role === "owner" || user.role === "admin" || user.role === "manager"
-          ? {} // admin/owner lihat semua
-          : { user_id: user.id },
+        // Semua role bisa melihat semua produk di katalog
         orderBy: { name: "asc" },
       });
       return res.status(200).json(items);
@@ -25,7 +23,7 @@ export default async function handler(
 
   if (req.method === "POST") {
     // Hanya admin/owner/manager yang bisa buat preset
-    if (user.role === "user") {
+    if (user.role === "user" || user.role === "sales") {
       return res.status(403).json({ error: "Akses ditolak: hanya admin yang dapat mengelola produk." });
     }
     try {

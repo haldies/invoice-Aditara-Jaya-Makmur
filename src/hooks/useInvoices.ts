@@ -2,21 +2,34 @@ import { useCallback } from "react";
 import useSWR from "swr";
 import { useToast } from "@/hooks/use-toast";
 import { swrFetcher } from "@/lib/swrConfig";
-import { Invoice, InvoiceInput } from "@/types/invoice";
+import { Invoice, InvoiceInput, PaginatedResult } from "@/types/invoice";
 
 const API_KEY = "/api/invoices";
 
-export function useInvoices() {
+export function useInvoices(params?: Record<string, any>) {
   const { toast } = useToast();
+  
+  const query = params 
+    ? "?" + new URLSearchParams(
+        Object.entries(params)
+          .filter(([_, v]) => v !== undefined && v !== "" && v !== "all")
+          .map(([k, v]) => [k, String(v)])
+      ).toString() 
+    : "";
+  const SWR_KEY = params ? API_KEY + query : API_KEY;
+
   const {
-    data: invoices = [],
+    data,
     error,
     isLoading,
     isValidating,
     mutate,
-  } = useSWR<Invoice[]>(API_KEY, swrFetcher, {
+  } = useSWR<PaginatedResult<Invoice> | Invoice[]>(SWR_KEY, swrFetcher, {
     revalidateOnFocus: false,
   });
+
+  const invoices = data && "data" in data ? data.data : (Array.isArray(data) ? data : []);
+  const pagination = data && "total" in data ? { total: data.total, page: data.page, totalPages: data.totalPages } : { total: invoices.length, page: 1, totalPages: 1 };
 
   const addInvoice = useCallback(
     async (invoice: InvoiceInput) => {
@@ -98,6 +111,7 @@ export function useInvoices() {
 
   return {
     invoices,
+    pagination,
     error,
     isLoading,
     isValidating,
@@ -105,5 +119,19 @@ export function useInvoices() {
     updateInvoice,
     deleteInvoice,
     mutate,
+  };
+}
+
+export function useInvoiceFilterOptions() {
+  const { data, error, isLoading } = useSWR<{ sales: string[], products: string[], cities: string[] }>(
+    "/api/invoices/filter-options",
+    swrFetcher,
+    { revalidateOnFocus: false }
+  );
+
+  return {
+    options: data || { sales: [], products: [], cities: [] },
+    isLoading,
+    error,
   };
 }

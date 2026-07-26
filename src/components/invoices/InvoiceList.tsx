@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { FilePlus, Search, Trash2, Eye, Printer, Filter, Calendar, Building2, User, X, FileText, ChevronLeft, ChevronRight } from "lucide-react";
+import { useRouter } from "next/router";
+import { FilePlus, Search, Trash2, Eye, Printer, Filter, Calendar, Building2, User, X, FileText, ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useInvoices } from "@/hooks/useInvoices";
+import { useInvoices, useInvoiceFilterOptions } from "@/hooks/useInvoices";
 import { useClients } from "@/hooks/useClients";
 import { useAuth } from "@/hooks/useAuth";
 import { INVOICE_STATUS_CONFIG } from "@/types/invoice";
@@ -18,12 +19,23 @@ import {
 import { downloadPDF, DocType } from "@/lib/pdfExport";
 import { loadCompanyProfile } from "@/lib/companyProfile";
 
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 const ITEMS_PER_PAGE = 10;
 
 export function InvoiceList() {
-  const { invoices, isLoading, deleteInvoice } = useInvoices();
   const { clients } = useClients();
   const { user } = useAuth();
+  const router = useRouter();
   
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -35,36 +47,23 @@ export function InvoiceList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isGeneratingId, setIsGeneratingId] = useState<string | null>(null);
 
-  // Dynamic filter dropdown options
-  const salesOptions = useMemo(() => {
-    const set = new Set<string>();
-    invoices.forEach((inv) => {
-      if ((inv as any).user?.email) set.add((inv as any).user.email);
-    });
-    return Array.from(set).sort();
-  }, [invoices]);
+  const debouncedSearch = useDebounce(search, 500);
 
-  const productOptions = useMemo(() => {
-    const set = new Set<string>();
-    invoices.forEach((inv) => {
-      inv.items?.forEach((item) => {
-        const name = (item.description || "").split("-")[0].trim();
-        if (name) set.add(name);
-      });
-    });
-    return Array.from(set).sort();
-  }, [invoices]);
+  const { options: filterOptions } = useInvoiceFilterOptions();
 
-  const cityOptions = useMemo(() => {
-    const set = new Set<string>();
-    invoices.forEach((inv) => {
-      const addr = inv.client.address || "";
-      const notes = inv.notes || "";
-      if (addr.trim()) set.add(addr.trim());
-      if (notes.trim()) set.add(notes.trim());
-    });
-    return Array.from(set).slice(0, 15);
-  }, [invoices]);
+  const { invoices, pagination, isLoading, deleteInvoice } = useInvoices({
+    search: debouncedSearch,
+    status: statusFilter,
+    client_id: clientFilter,
+    sales: salesFilter,
+    product: productFilter,
+    city: cityFilter,
+    sort: sortOrder,
+    page: currentPage,
+    limit: ITEMS_PER_PAGE,
+  });
+
+  // Dynamic filter dropdown options are now text inputs to support full DB search
 
   const handlePrintList = async (invoice: any) => {
     setIsGeneratingId(invoice.id);
@@ -85,103 +84,8 @@ export function InvoiceList() {
     }
   };
 
-  const filtered = useMemo(() => {
-    let result = invoices;
 
-    // Filter by search query
-    if (search.trim()) {
-      const query = search.toLowerCase().trim();
-      result = result.filter(
-        (inv) =>
-          inv.invoice_number.toLowerCase().includes(query) ||
-          inv.client.name.toLowerCase().includes(query) ||
-          (inv.client.company && inv.client.company.toLowerCase().includes(query)) ||
-          (inv.notes && inv.notes.toLowerCase().includes(query)) ||
-          (inv.client.address && inv.client.address.toLowerCase().includes(query))
-      );
-    }
-
-    // Filter by status
-    if (statusFilter !== "all") {
-      result = result.filter((inv) => inv.status === statusFilter);
-    }
-
-    // Filter by client
-    if (clientFilter !== "all") {
-      result = result.filter((inv) => inv.client_id === clientFilter);
-    }
-
-    // Filter by sales
-    if (salesFilter !== "all") {
-      result = result.filter((inv) => (inv as any).user?.email === salesFilter);
-    }
-
-    // Filter by product
-    if (productFilter !== "all") {
-      result = result.filter((inv) =>
-        inv.items?.some((it) => (it.description || "").toLowerCase().includes(productFilter.toLowerCase()))
-      );
-    }
-
-    // Filter by city / location
-    if (cityFilter !== "all") {
-      result = result.filter(
-        (inv) =>
-          (inv.client.address && inv.client.address.includes(cityFilter)) ||
-          (inv.notes && inv.notes.includes(cityFilter))
-      );
-    }
-
-    // Sorting
-    return [...result].sort((a, b) => {
-      if (sortOrder === "total_high") return b.total - a.total;
-      if (sortOrder === "total_low") return a.total - b.total;
-      if (sortOrder === "oldest") return new Date(a.issue_date).getTime() - new Date(b.issue_date).getTime();
-      return new Date(b.issue_date).getTime() - new Date(a.issue_date).getTime();
-    });
-  }, [invoices, search, statusFilter, clientFilter, salesFilter, productFilter, cityFilter, sortOrder]);
-
-  // Reset page when filter changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, statusFilter, clientFilter, salesFilter, productFilter, cityFilter, sortOrder]);
-
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1;
-  const paginatedInvoices = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filtered.slice(start, start + ITEMS_PER_PAGE);
-  }, [filtered, currentPage]);
-
-  const hasActiveFilters =
-    search !== "" ||
-    statusFilter !== "all" ||
-    clientFilter !== "all" ||
-    salesFilter !== "all" ||
-    productFilter !== "all" ||
-    cityFilter !== "all" ||
-    sortOrder !== "newest";
-
-  const handleResetFilters = () => {
-    setSearch("");
-    setStatusFilter("all");
-    setClientFilter("all");
-    setSalesFilter("all");
-    setProductFilter("all");
-    setCityFilter("all");
-    setSortOrder("newest");
-  };
-
-  if (isLoading) {
-    return (
-      <div className="grid gap-4 p-4 md:p-6 max-w-6xl mx-auto sm:grid-cols-2 lg:grid-cols-3">
-        {[1, 2, 3].map((item) => (
-          <div key={item} className="h-48 animate-pulse rounded-xl bg-muted" />
-        ))}
-      </div>
-    );
-  }
-
-  const isRestrictedUser = user?.role === "user";
+  const isRestrictedUser = user?.role === "user" || user?.role === "sales";
 
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-6xl mx-auto">
@@ -200,7 +104,7 @@ export function InvoiceList() {
           </div>
 
           {!isRestrictedUser && (
-            <Button asChild className="h-10 font-bold text-xs bg-slate-800 hover:bg-slate-900 shrink-0">
+            <Button asChild className="h-10 font-bold text-xs bg-primary text-primary-foreground hover:bg-primary/90 shrink-0">
               <Link href="/tracker/invoices/new">
                 <FilePlus className="mr-1.5 h-4 w-4" />
                 Buat Transaksi
@@ -225,14 +129,14 @@ export function InvoiceList() {
           </Select>
 
           {/* Filter Sales */}
-          {!isRestrictedUser && (
+          {!isRestrictedUser && filterOptions.sales.length > 0 && (
             <Select value={salesFilter} onValueChange={setSalesFilter}>
               <SelectTrigger className="h-9 text-xs font-semibold">
                 <SelectValue placeholder="Semua Sales" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Sales</SelectItem>
-                {salesOptions.map((email) => (
+                {filterOptions.sales.map((email) => (
                   <SelectItem key={email} value={email}>
                     {email}
                   </SelectItem>
@@ -257,29 +161,31 @@ export function InvoiceList() {
           </Select>
 
           {/* Filter Produk */}
-          <Select value={productFilter} onValueChange={setProductFilter}>
-            <SelectTrigger className="h-9 text-xs font-semibold">
-              <SelectValue placeholder="Semua Produk" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Produk</SelectItem>
-              {productOptions.map((prod) => (
-                <SelectItem key={prod} value={prod}>
-                  {prod}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {filterOptions.products.length > 0 && (
+            <Select value={productFilter} onValueChange={setProductFilter}>
+              <SelectTrigger className="h-9 text-xs font-semibold">
+                <SelectValue placeholder="Semua Produk" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Produk</SelectItem>
+                {filterOptions.products.map((prod) => (
+                  <SelectItem key={prod} value={prod}>
+                    {prod.length > 25 ? prod.slice(0, 25) + "..." : prod}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
           {/* Filter Tujuan / Kota */}
-          {cityOptions.length > 0 && (
+          {filterOptions.cities.length > 0 && (
             <Select value={cityFilter} onValueChange={setCityFilter}>
               <SelectTrigger className="h-9 text-xs font-semibold">
                 <SelectValue placeholder="Tujuan / Lokasi" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Tujuan</SelectItem>
-                {cityOptions.map((city) => (
+                {filterOptions.cities.map((city) => (
                   <SelectItem key={city} value={city}>
                     {city.length > 25 ? city.slice(0, 25) + "..." : city}
                   </SelectItem>
@@ -288,20 +194,6 @@ export function InvoiceList() {
             </Select>
           )}
         </div>
-
-        {/* Reset Filter Button if Active */}
-        {hasActiveFilters && (
-          <div className="flex justify-end">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleResetFilters}
-              className="h-7 text-xs text-muted-foreground hover:text-destructive flex items-center gap-1"
-            >
-              <X className="h-3.5 w-3.5" /> Reset Filter
-            </Button>
-          </div>
-        )}
 
         {/* Row 2: Underline Category Tabs */}
         <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
@@ -335,23 +227,45 @@ export function InvoiceList() {
       </div>
 
       {/* Invoice List / Grid of Cards */}
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((item) => (
+            <div key={item} className="group relative flex flex-col justify-between border border-slate-100 dark:border-slate-800 rounded-lg bg-card p-3 shadow-none">
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="h-3 w-16 bg-muted animate-pulse rounded" />
+                  <div className="h-4 w-20 bg-muted animate-pulse rounded" />
+                </div>
+                <div className="h-4 w-32 bg-muted animate-pulse rounded mb-1" />
+                <div className="h-3 w-40 bg-muted animate-pulse rounded" />
+                <div className="h-2 w-24 bg-muted animate-pulse rounded mt-1.5" />
+                <div className="flex items-center justify-between mt-3 mb-2.5">
+                  <div className="h-3 w-10 bg-muted animate-pulse rounded" />
+                  <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-1.5 border-t border-slate-100 pt-2.5 dark:border-slate-800">
+                <div className="h-7 w-16 bg-muted animate-pulse rounded" />
+                <div className="h-7 w-8 bg-muted animate-pulse rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : invoices.length === 0 ? (
         <section className="rounded-xl border bg-card p-12 text-center max-w-xl mx-auto">
           <div className="p-3 bg-muted/50 rounded-full w-fit mx-auto mb-3">
             <FileText className="h-6 w-6 text-muted-foreground" />
           </div>
           <h3 className="font-semibold text-base text-foreground">Tidak ada transaksi ditemukan</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            {hasActiveFilters
-              ? "Coba ubah kata kunci pencarian atau filter status Anda."
-              : "Buat transaksi baru untuk mengelola penawaran, invoice, PO, dan kwitansi."}
+            Coba ubah kata kunci pencarian atau filter Anda, atau buat transaksi baru.
           </p>
 
         </section>
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {paginatedInvoices.map((invoice) => {
+            {invoices.map((invoice) => {
             const statusConfig = INVOICE_STATUS_CONFIG[invoice.status] || {
               label: invoice.status,
               bgColor: "bg-muted",
@@ -360,9 +274,10 @@ export function InvoiceList() {
             return (
               <div
                 key={invoice.id}
-                className="group relative flex flex-col justify-between border border-slate-100 dark:border-slate-800 rounded-lg bg-card p-3 shadow-none hover:shadow-xs hover:border-slate-200 transition-all duration-150"
+                className="group relative flex flex-col justify-between border border-slate-100 dark:border-slate-800 rounded-lg bg-card p-3 shadow-none hover:shadow-xs hover:border-slate-200 transition-all duration-150 cursor-pointer"
+                onClick={() => router.push(`/tracker/invoices/${invoice.id}`)}
               >
-                <Link href={`/tracker/invoices/${invoice.id}`} className="block flex-1">
+                <div className="block flex-1">
                   {/* Top Bar: Date & Status (Text Only, No Border/Badge) */}
                   <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1.5">
                     <span>{new Date(invoice.issue_date).toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric' })}</span>
@@ -396,9 +311,23 @@ export function InvoiceList() {
 
                   {/* Sales Rep Info for Admins */}
                   {!isRestrictedUser && invoice.user?.email && (
-                    <div className="text-[10px] text-muted-foreground mt-1.5 flex items-center gap-1">
-                      <User className="h-3 w-3" />
-                      Sales: {invoice.user.email}
+                    <div className="text-[10px] text-muted-foreground mt-1.5 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1 truncate">
+                        <User className="h-3 w-3 shrink-0" />
+                        <span className="truncate">Sales: {invoice.user.email.split("@")[0]}</span>
+                      </div>
+                      {invoice.user.phone && (
+                        <a 
+                          href={`https://wa.me/62${invoice.user.phone.replace(/^0+/, "").replace(/\D/g, "")}`} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="flex items-center gap-1 text-emerald-600 hover:text-emerald-700 hover:underline shrink-0 z-10"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MessageCircle className="h-3 w-3" />
+                          Chat
+                        </a>
+                      )}
                     </div>
                   )}
 
@@ -409,7 +338,7 @@ export function InvoiceList() {
                       {invoice.currency} {invoice.total.toLocaleString("id-ID")}
                     </span>
                   </div>
-                </Link>
+                </div>
 
                 {/* Action Buttons (Print, Delete only) */}
                 <div className="flex items-center justify-end gap-1.5 border-t border-slate-100 pt-2.5 dark:border-slate-800">
@@ -453,10 +382,10 @@ export function InvoiceList() {
         </div>
 
           {/* Pagination Controls */}
-          {totalPages > 1 && (
+          {pagination.totalPages > 1 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t text-xs text-muted-foreground">
               <div>
-                Menampilkan <span className="font-bold text-foreground">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> - <span className="font-bold text-foreground">{Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)}</span> dari <span className="font-bold text-foreground">{filtered.length}</span> transaksi
+                Menampilkan <span className="font-bold text-foreground">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> - <span className="font-bold text-foreground">{Math.min(currentPage * ITEMS_PER_PAGE, pagination.total)}</span> dari <span className="font-bold text-foreground">{pagination.total}</span> transaksi
               </div>
               <div className="flex items-center gap-1.5">
                 <Button
@@ -470,14 +399,14 @@ export function InvoiceList() {
                   Sebelumnya
                 </Button>
                 <span className="px-3 font-semibold text-foreground">
-                  {currentPage} / {totalPages}
+                  {currentPage} / {pagination.totalPages}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
                   className="h-8 px-2 text-xs"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === pagination.totalPages}
+                  onClick={() => setCurrentPage(p => Math.min(pagination.totalPages, p + 1))}
                 >
                   Selanjutnya
                   <ChevronRight className="h-4 w-4 ml-1" />

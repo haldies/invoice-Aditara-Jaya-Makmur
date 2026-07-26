@@ -192,17 +192,19 @@ function SettingsPage() {
           >
             Akun Saya
           </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("company")}
-            className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-all ${
-              activeTab === "company"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Profil Perusahaan
-          </button>
+          {canManageRoles && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("company")}
+              className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-all ${
+                activeTab === "company"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Profil Perusahaan
+            </button>
+          )}
           {canManageRoles && (
             <button
               type="button"
@@ -245,7 +247,7 @@ function SettingsPage() {
             </section>
           )}
 
-          {activeTab === "company" && (
+          {activeTab === "company" && canManageRoles && (
             <CompanyProfileSection />
           )}
 

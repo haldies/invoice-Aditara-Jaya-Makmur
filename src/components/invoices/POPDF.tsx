@@ -240,6 +240,21 @@ const formatCurrency = (amount: number, currency: string) => {
   }).format(amount);
 };
 
+const formatIndonesianDate = (dateStr: string) => {
+  if (!dateStr) return "";
+  try {
+    const parts = dateStr.split("T")[0].split("-");
+    if (parts.length !== 3) return dateStr.split("T")[0];
+    const months = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+    return `${parseInt(parts[2], 10)} ${months[parseInt(parts[1], 10) - 1]} ${parts[0]}`;
+  } catch (e) {
+    return dateStr.split("T")[0];
+  }
+};
+
 interface Props {
   invoice: Invoice;
   company: CompanyProfile;
@@ -305,7 +320,7 @@ export const POPDF = ({ invoice, company, includePpn }: Props) => {
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>Date</Text>
               <Text style={styles.metaColon}>:</Text>
-              <Text style={styles.metaValue}>{invoice.issue_date}</Text>
+              <Text style={styles.metaValue}>{formatIndonesianDate(invoice.issue_date)}</Text>
             </View>
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>No.</Text>
@@ -318,7 +333,7 @@ export const POPDF = ({ invoice, company, includePpn }: Props) => {
               <View style={styles.metaRow}>
                 <Text style={styles.metaLabel}>Delivery Date</Text>
                 <Text style={styles.metaColon}>:</Text>
-                <Text style={styles.metaValue}>{invoice.due_date}</Text>
+                <Text style={styles.metaValue}>{formatIndonesianDate(invoice.due_date)}</Text>
               </View>
             )}
             <View style={styles.metaRow}>

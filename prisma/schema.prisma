@@ -14,6 +14,7 @@ model AppUser {
   password_hash String
   password_salt String
   role            String    @default("user")
+  phone           String?
   commission_rate Float     @default(5000) // Default komisi per m3 untuk sales ini
   created_at      String
   updated_at      String

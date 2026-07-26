@@ -106,6 +106,21 @@ const styles = StyleSheet.create({
 const formatCurrency = (amount: number, currency: string) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency, minimumFractionDigits: 0 }).format(amount);
 
+const formatIndonesianDate = (dateStr: string) => {
+  if (!dateStr) return "";
+  try {
+    const parts = dateStr.split("T")[0].split("-");
+    if (parts.length !== 3) return dateStr.split("T")[0];
+    const months = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+    return `${parseInt(parts[2], 10)} ${months[parseInt(parts[1], 10) - 1]} ${parts[0]}`;
+  } catch (e) {
+    return dateStr.split("T")[0];
+  }
+};
+
 interface Props { invoice: Invoice; company: CompanyProfile; includePpn: boolean; }
 
 export const TemplateBranded = ({ invoice, company, includePpn }: Props) => {
@@ -135,12 +150,12 @@ export const TemplateBranded = ({ invoice, company, includePpn }: Props) => {
         <View style={styles.accentStrip}>
           <View style={styles.accentItem}>
             <Text style={styles.accentLabel}>Tanggal Terbit</Text>
-            <Text style={styles.accentValue}>{invoice.issue_date}</Text>
+              <Text style={styles.accentValue}>{formatIndonesianDate(invoice.issue_date)}</Text>
           </View>
           {invoice.due_date && (
             <View style={styles.accentItem}>
               <Text style={styles.accentLabel}>Jatuh Tempo</Text>
-              <Text style={styles.accentValue}>{invoice.due_date}</Text>
+              <Text style={styles.accentValue}>{formatIndonesianDate(invoice.due_date)}</Text>
             </View>
           )}
           {invoice.status && (

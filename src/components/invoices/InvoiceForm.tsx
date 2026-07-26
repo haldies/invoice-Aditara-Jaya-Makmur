@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, type FormEvent } from "react";
+import { useState, useMemo, type FormEvent } from "react";
 import { useRouter } from "next/router";
 import { useInvoices } from "@/hooks/useInvoices";
 import { usePresetItems } from "@/hooks/usePresetItems";
@@ -154,16 +154,17 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
   const { user } = useAuth();
 
   // role helpers
-  const isSales = user?.role === "user";
+  const isSales = user?.role === "user" || user?.role === "sales";
   const isAdmin = user?.role === "owner" || user?.role === "admin" || user?.role === "manager";
 
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [manualClient, setManualClient] = useState(invoice ? !invoice.client_id : false);
+  const [manualClient, setManualClient] = useState(invoice ? !invoice.client_id : true);
+  const [catalogSearch, setCatalogSearch] = useState("");
 
   const [form, setForm] = useState<InvoiceInput>({
     invoice_number: invoice?.invoice_number ?? defaultInvoiceNumber(),
-    status: invoice?.status ?? "penawaran",
+    status: invoice?.status ?? "tagihan",
     currency: invoice?.currency ?? "IDR",
     issue_date: invoice?.issue_date ?? today(),
     due_date: invoice?.due_date ?? "",
@@ -195,9 +196,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
       : true
   );
 
-  useEffect(() => {
-    if (!invoice && clients.length === 0) setManualClient(true);
-  }, [clients, invoice]);
+
 
   // -- totals – line_total uses actual_quantity when set ---------------------
   const totals = useMemo(() => {
@@ -288,6 +287,41 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
     } catch (error: unknown) {
       console.error(error);
       alert(error instanceof Error ? error.message : "Gagal menyimpan invoice.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Save with explicit status override (used by dual-button for sales)
+  const saveWithStatus = async (statusOverride: string) => {
+    if (isSaving) return;
+    setIsSaving(true);
+    const payload = {
+      ...form,
+      status: statusOverride as any,
+      due_date: form.due_date || null,
+      paid_date: form.paid_date || null,
+      discount: Number(form.discount || 0),
+      tax: totals.tax,
+      fee: Number(form.fee || 0),
+      items: form.items
+        .filter((item) => item.description.trim())
+        .map((item, index) => ({
+          ...item,
+          quantity: Number(item.quantity || 0),
+          actual_quantity: item.actual_quantity != null ? Number(item.actual_quantity) : null,
+          unit_price: Number(item.unit_price || 0),
+          buy_in_price: Number(item.buy_in_price || 0),
+          commission_rate: Number(item.commission_rate || 5000),
+          sort_order: index,
+        })),
+    };
+    try {
+      const saved = await addInvoice(payload);
+      await router.push(`/tracker/invoices/${saved.id}`);
+    } catch (error: unknown) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "Gagal menyimpan.");
     } finally {
       setIsSaving(false);
     }
@@ -444,86 +478,114 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
             <div className="space-y-2">
               {isSales ? (
                 <>
-                  {form.items.filter(i => i.description.trim()).map((item, index) => {
-                    // Find actual index in original array for editing
-                    const originalIndex = form.items.findIndex(i => i === item);
-                    return (
-                      <div key={originalIndex} className="flex items-center gap-3 py-3 border-b border-slate-100 last:border-0">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-bold text-sm text-slate-800 leading-tight">{item.description}</div>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <span className="text-xs text-muted-foreground font-medium">Rp {Number(item.unit_price).toLocaleString("id-ID")} &times;</span>
-                            <Input 
-                              type="number" min="0" step="any" 
-                              value={item.quantity}
-                              onChange={(e) => updateItem(originalIndex, "quantity", e.target.value)}
-                              className="h-7 w-16 text-center px-1 text-xs font-bold border-slate-200 shadow-none focus-visible:ring-1" 
-                            />
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                           <div className="font-black text-sm text-slate-800">
-                             Rp {(Number(item.quantity || 0) * Number(item.unit_price || 0)).toLocaleString("id-ID")}
-                           </div>
-                        </div>
-                        <button type="button" onClick={() => removeItem(originalIndex)} className="text-muted-foreground hover:text-red-500 p-2 -mr-2 transition-colors">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                  {/* Header row */}
+                  {form.items.filter(i => i.description.trim()).length > 0 && (
+                    <div className="grid grid-cols-[1fr_64px_86px_28px] gap-1.5 px-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      <div>Produk</div>
+                      <div className="text-center">Qty/m³</div>
+                      <div className="text-right">Harga (Rp)</div>
+                      <div />
+                    </div>
+                  )}
+
+                  {form.items.map((item, index) => (
+                    <div key={index} className="grid grid-cols-[1fr_64px_86px_28px] gap-1.5 items-center bg-card border rounded-xl px-3 py-2 shadow-sm">
+                      <div className="min-w-0">
+                        <Input
+                          value={item.description}
+                          onChange={(e) => updateItem(index, "description", e.target.value)}
+                          placeholder="Nama produk..."
+                          className="h-8 text-xs font-semibold border-0 shadow-none p-0 focus-visible:ring-0 bg-transparent"
+                        />
                       </div>
-                    );
-                  })}
-                  
-                  {form.status === "penawaran" && (
+                      <Input
+                        type="number" min="0" step="any"
+                        value={item.quantity}
+                        onChange={(e) => updateItem(index, "quantity", e.target.value)}
+                        className="h-8 text-center text-xs font-bold px-1 border-slate-200"
+                      />
+                      <Input
+                        type="number" min="0"
+                        value={item.unit_price || ""}
+                        onChange={(e) => updateItem(index, "unit_price", e.target.value)}
+                        placeholder="0"
+                        className="h-8 text-right text-xs font-bold px-1.5 border-slate-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeItem(index)}
+                        className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-red-500 transition-colors rounded"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Add buttons */}
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setForm(cur => ({
+                        ...cur,
+                        items: [...cur.items, { description: "", quantity: 1, actual_quantity: null, unit_price: 0, buy_in_price: 0, commission_rate: 5000, sort_order: cur.items.length }]
+                      }))}
+                      className="flex-1 h-9 border border-dashed border-slate-300 rounded-lg text-xs font-semibold text-muted-foreground hover:border-slate-600 hover:text-foreground hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Tambah Manual
+                    </button>
                     <Dialog>
                       <DialogTrigger asChild>
-                        <Button type="button" variant="outline" className="w-full h-14 border-2 border-dashed border-slate-300 text-slate-600 hover:border-slate-800 hover:bg-slate-50 transition-colors rounded-xl font-bold">
-                          <Plus className="mr-2 h-5 w-5" /> Tambah Produk / Layanan
-                        </Button>
+                        <button
+                          type="button"
+                          className="flex-1 h-9 bg-primary text-primary-foreground rounded-lg text-xs font-bold hover:bg-primary/90 transition-all flex items-center justify-center gap-1.5"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Dari Katalog
+                        </button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-4xl p-0 overflow-hidden bg-slate-50">
-                        <DialogHeader className="p-4 sm:p-6 bg-white border-b">
-                          <DialogTitle className="text-xl font-black">Katalog Produk</DialogTitle>
+                      <DialogContent className="max-w-lg w-full h-[100dvh] sm:h-auto p-0 overflow-hidden flex flex-col border-0 sm:border rounded-none sm:rounded-xl">
+                        <DialogHeader className="p-4 border-b shrink-0">
+                          <DialogTitle className="font-black text-lg">Pilih Produk</DialogTitle>
+                          <Input
+                            placeholder="Cari produk..."
+                            className="mt-3 h-10 text-sm"
+                            value={catalogSearch}
+                            onChange={(e) => setCatalogSearch(e.target.value)}
+                            autoFocus
+                          />
                         </DialogHeader>
-                        <div className="p-4 sm:p-6 max-h-[60vh] overflow-y-auto no-scrollbar grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div className="flex-1 overflow-y-auto p-3 space-y-1.5 sm:max-h-[55vh]">
                           {presetItems.length === 0 ? (
-                            <div className="col-span-full py-8 text-center text-muted-foreground italic">Belum ada produk di katalog. Hubungi admin.</div>
+                            <p className="text-sm text-muted-foreground text-center py-8">Belum ada produk. Hubungi admin.</p>
                           ) : (
-                            presetItems.map(p => (
+                            presetItems
+                              .filter(p => !catalogSearch.trim() || p.name.toLowerCase().includes(catalogSearch.toLowerCase()))
+                              .map(p => (
                               <button
                                 key={p.id}
                                 type="button"
                                 onClick={() => {
                                   const desc = p.name + (p.description ? ` - ${p.description}` : "");
-                                  setForm(cur => {
-                                    const lastItem = cur.items[cur.items.length - 1];
-                                    if (lastItem && !lastItem.description.trim()) {
-                                      const newItems = [...cur.items];
-                                      // Hanya isi nama — harga harus diisi manual
-                                      newItems[cur.items.length - 1] = {
-                                        ...lastItem, description: desc, quantity: 1
-                                      };
-                                      return { ...cur, items: newItems };
-                                    } else {
-                                      return {
-                                        ...cur,
-                                        items: [...cur.items, { description: desc, quantity: 1, actual_quantity: null, unit_price: 0, buy_in_price: 0, commission_rate: 5000, sort_order: cur.items.length }]
-                                      };
-                                    }
-                                  });
-                                  // Close dialog logic can be tricky without controlled state, but multiple selections without closing is often better for a catalog!
+                                  setForm(cur => ({
+                                    ...cur,
+                                    items: [...cur.items, { description: desc, quantity: 1, actual_quantity: null, unit_price: Number(p.unit_price) || 0, buy_in_price: Number(p.buy_in_price) || 0, commission_rate: 5000, sort_order: cur.items.length }]
+                                  }));
                                 }}
-                                className="text-left bg-white p-4 rounded-xl border shadow-sm hover:border-slate-800 hover:shadow-md transition-all group"
+                                className="w-full flex items-center justify-between text-left px-4 py-3.5 rounded-xl border bg-card hover:border-slate-800 hover:bg-slate-50 transition-all group"
                               >
-                                <div className="font-bold text-slate-800 text-sm mb-1 group-hover:text-primary transition-colors">{p.name}</div>
-                                {p.description && <div className="text-[10px] text-muted-foreground line-clamp-2 mb-3">{p.description}</div>}
-                                <div className="font-black text-slate-800 mt-2">Rp {Number(p.unit_price).toLocaleString("id-ID")}</div>
+                                <div>
+                                  <p className="font-bold text-sm group-hover:text-primary transition-colors">{p.name}</p>
+                                  {p.description && <p className="text-xs text-muted-foreground mt-0.5">{p.description}</p>}
+                                </div>
+                                <div className="text-right ml-3 shrink-0">
+                                  <p className="font-black text-sm">Rp {Number(p.unit_price).toLocaleString("id-ID")}</p>
+                                </div>
                               </button>
                             ))
                           )}
                         </div>
                       </DialogContent>
                     </Dialog>
-                  )}
+                  </div>
                 </>
               ) : (
               <>
@@ -797,7 +859,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                   </div>
                 )}
 
-                {form.status !== "penawaran" && (
+                {form.status === "po" && (
                   <div className="grid gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t">
                     <div>
                       <Label htmlFor="due_date" className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
@@ -811,11 +873,10 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                         className="h-10 mt-1.5 cursor-pointer"
                       />
                     </div>
-                    {form.status !== "tagihan" && (
-                      <div>
-                        <Label htmlFor="notes" className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                          <Truck className="w-3.5 h-3.5" /> Lokasi Proyek / Alamat Kirim
-                        </Label>
+                    <div>
+                      <Label htmlFor="notes" className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                        <Truck className="w-3.5 h-3.5" /> Lokasi Proyek / Alamat Kirim
+                      </Label>
                         <Textarea id="notes" value={form.notes ?? ""}
                           onChange={(e) => setForm({ ...form, notes: e.target.value })}
                           placeholder="Contoh: Jl. Melon Raya No.79, Surakarta"
@@ -823,7 +884,6 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                           className="mt-1.5 min-h-[40px] text-xs h-10 py-2.5"
                         />
                       </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -990,13 +1050,64 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
             )}
 
             {/* Actions */}
-            <div className={`space-y-3 ${form.status !== "penawaran" ? "pt-2 border-t" : ""}`}>
-              <div className="flex items-center gap-2">
-                <Button type="submit" disabled={isSaving} className="w-full font-bold h-10 text-xs bg-slate-800 hover:bg-slate-900">
-                  <Save className="mr-1.5 h-4 w-4" />
-                  {isSaving ? "Menyimpan..." : invoice ? "Simpan Perubahan" : "Buat Transaksi"}
-                </Button>
-              </div>
+            <div className="space-y-2">
+              {/* Sales create mode: two buttons — Penawaran (secondary) vs Tagihan/Invoice (primary) */}
+              {!invoice && isSales && (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    disabled={isSaving}
+                    variant="outline"
+                    onClick={() => saveWithStatus("penawaran")}
+                    className="h-10 font-bold text-xs border-slate-400 text-slate-600 hover:bg-slate-50"
+                  >
+                    <Save className="mr-1.5 h-3.5 w-3.5" />
+                    {isSaving ? "..." : "Penawaran"}
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={() => saveWithStatus("tagihan")}
+                    className="h-10 font-bold text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Save className="mr-1.5 h-3.5 w-3.5" />
+                    {isSaving ? "..." : "Buat Invoice"}
+                  </Button>
+                </div>
+              )}
+              {/* Admin create or any edit mode */}
+              {!isSales && !invoice && (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    disabled={isSaving}
+                    variant="outline"
+                    onClick={() => saveWithStatus("penawaran")}
+                    className="h-10 font-bold text-xs border-slate-400 text-slate-600 hover:bg-slate-50"
+                  >
+                    <Save className="mr-1.5 h-3.5 w-3.5" />
+                    {isSaving ? "..." : "Penawaran"}
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={() => saveWithStatus("tagihan")}
+                    className="h-10 font-bold text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Save className="mr-1.5 h-3.5 w-3.5" />
+                    {isSaving ? "..." : "Buat Invoice"}
+                  </Button>
+                </div>
+              )}
+              {/* Edit mode */}
+              {invoice && (
+                <div className="flex items-center gap-2">
+                  <Button type="submit" disabled={isSaving} className="w-full font-bold h-10 text-xs bg-primary text-primary-foreground hover:bg-primary/90">
+                    <Save className="mr-1.5 h-4 w-4" />
+                    {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
+                  </Button>
+                </div>
+              )}
 
               {invoice && (
                 <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-dashed">

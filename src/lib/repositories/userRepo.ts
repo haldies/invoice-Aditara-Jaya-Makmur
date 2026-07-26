@@ -13,6 +13,7 @@ export async function listUsers(actor: RequestUser): Promise<AppUser[]> {
     select: {
       id: true,
       email: true,
+      phone: true,
       role: true,
       commission_rate: true,
       created_at: true,
@@ -56,6 +57,7 @@ export async function updateUserRole(
     select: {
       id: true,
       email: true,
+      phone: true,
       role: true,
       commission_rate: true,
       created_at: true,
@@ -80,6 +82,7 @@ export async function updateUserCommissionRate(
     select: {
       id: true,
       email: true,
+      phone: true,
       role: true,
       commission_rate: true,
       created_at: true,

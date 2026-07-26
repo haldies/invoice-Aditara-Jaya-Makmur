@@ -14,9 +14,10 @@ export default async function handler(
     return res.status(400).json({ error: "Invalid preset item ID" });
   }
 
-  // Verify ownership
+  // Verify ownership/admin rights
+  const isAdmin = user.role === "owner" || user.role === "admin" || user.role === "manager";
   const existing = await prisma.invoicePresetItem.findFirst({
-    where: { id, user_id: user.id },
+    where: isAdmin ? { id } : { id, user_id: user.id },
   });
   if (!existing) {
     return res.status(404).json({ error: "Preset item not found" });
@@ -24,7 +25,7 @@ export default async function handler(
 
   if (req.method === "PUT") {
     // Hanya admin/owner/manager yang bisa edit preset
-    if (user.role === "user") {
+    if (user.role === "user" || user.role === "sales") {
       return res.status(403).json({ error: "Akses ditolak: hanya admin yang dapat mengelola produk." });
     }
     try {

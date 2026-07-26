@@ -24,10 +24,10 @@ type MenuIcon = ComponentType<{ className?: string }>;
 
 const trackerMenuItems: Array<{ title: string; url: string; icon: MenuIcon, roles?: string[] }> = [
   { title: "Ringkasan", url: "/tracker", icon: Home as MenuIcon, roles: ["owner", "admin", "manager", "user"] },
-  { title: "Daftar Transaksi", url: "/tracker/invoices", icon: ReceiptText as MenuIcon, roles: ["owner", "admin", "manager", "user"] },
-  { title: "Buat Transaksi Baru", url: "/tracker/invoices/new", icon: FilePlus2 as MenuIcon, roles: ["owner", "admin", "manager", "user"] },
+  { title: "Daftar Transaksi", url: "/tracker/invoices", icon: ReceiptText as MenuIcon, roles: ["owner", "admin", "manager", "user", "sales"] },
+  { title: "Buat Transaksi Baru", url: "/tracker/invoices/new", icon: FilePlus2 as MenuIcon, roles: ["owner", "admin", "manager", "user", "sales"] },
   { title: "Produk", url: "/tracker/presets", icon: Tag as MenuIcon, roles: ["owner", "admin", "manager"] },
-  { title: "Settings", url: "/settings", icon: Settings as MenuIcon, roles: ["owner", "admin", "manager", "user"] },
+  { title: "Settings", url: "/settings", icon: Settings as MenuIcon, roles: ["owner", "admin", "manager", "user", "sales"] },
 ];
 const heavyPrefetchRoutes = new Set(["/tracker/invoices/new", "/tracker/templates/new", "/tracker/presets"]);
 

@@ -5,201 +5,182 @@ import { getUnit, formatQuantity } from "@/lib/pdfUtils";
 
 const styles = StyleSheet.create({
   page: {
-    padding: 40,
-    fontFamily: "Times-Roman",
-    fontSize: 9.5,
-    color: "#000000",
-    backgroundColor: "#ffffff",
+    padding: 30,
+    fontFamily: "Helvetica",
+    fontSize: 9,
+    color: "#000",
+    backgroundColor: "#fff",
   },
-  header: {
+  // Header
+  headerContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
     marginBottom: 10,
-    paddingBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: "#000000",
   },
   headerLeft: {
     flexDirection: "row",
     alignItems: "flex-start",
-    flex: 1,
   },
-  logoLeft: {
+  logo: {
     width: 80,
-    height: 45,
-    marginRight: 10,
+    height: 40,
     objectFit: "contain",
+    marginRight: 10,
   },
   companyInfo: {
-    flex: 1,
+    flexDirection: "column",
   },
   companyName: {
-    fontFamily: "Times-Bold",
-    fontSize: 12.5,
-    textTransform: "uppercase",
+    fontFamily: "Helvetica-Bold",
+    fontSize: 11,
   },
-  companySubtitle: {
-    fontSize: 8.5,
-    fontFamily: "Times-Bold",
-    marginTop: 1,
+  companySub: {
+    fontSize: 8,
     marginBottom: 2,
   },
-  infoRow: {
+  companyDetail: {
+    fontSize: 7,
     flexDirection: "row",
-    marginTop: 1,
+    marginBottom: 1,
   },
-  infoLabel: {
-    width: 40,
+  companyDetailLabel: { width: 35 },
+  headerRight: {
+    alignItems: "flex-end",
+  },
+  dealerText: {
     fontSize: 8,
+    fontFamily: "Helvetica-Bold",
+    marginTop: 25,
   },
-  infoColon: {
-    width: 8,
-    fontSize: 8,
-  },
-  infoValue: {
-    flex: 1,
-    fontSize: 8,
-  },
+
   dateLocation: {
-    fontSize: 9.5,
-    marginBottom: 10,
-    textAlign: "left",
+    textAlign: "right",
+    marginBottom: 20,
+    fontSize: 9,
   },
+
+  // Recipient
   recipientBlock: {
-    marginBottom: 15,
+    marginBottom: 20,
     lineHeight: 1.3,
   },
   recipientLabel: {
-    fontFamily: "Times-Bold",
+    fontFamily: "Helvetica-Bold",
   },
-  recipientName: {
-    fontFamily: "Times-Bold",
-    textTransform: "uppercase",
+
+  // Perihal
+  perihalBlock: {
+    flexDirection: "row",
+    marginBottom: 15,
   },
-  perihal: {
-    fontFamily: "Times-Bold",
-    fontSize: 10.5,
-    marginTop: 10,
-    marginBottom: 12,
-    textDecoration: "underline",
+  perihalLabel: {
+    fontFamily: "Helvetica-Bold",
+    width: 50,
   },
+  perihalColon: { width: 15 },
+  perihalVal: {
+    fontFamily: "Helvetica-Bold",
+  },
+
+  // Opening
   openingText: {
-    marginBottom: 12,
+    marginBottom: 10,
     lineHeight: 1.3,
   },
+
+  // Table
   table: {
-    width: "100%",
-    marginBottom: 15,
-    borderWidth: 0.5,
-    borderColor: "#000000",
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderColor: "#000",
+    marginBottom: 20,
   },
-  tableHeader: {
+  tr: {
     flexDirection: "row",
-    backgroundColor: "#f2f2f2",
+  },
+  tdBase: {
     borderBottomWidth: 1,
-    borderBottomColor: "#000000",
+    borderRightWidth: 1,
+    borderColor: "#000",
     paddingVertical: 5,
+    paddingHorizontal: 4,
+    justifyContent: "center",
   },
-  tableHeaderCell: {
-    fontFamily: "Times-Bold",
-    fontSize: 9,
-    paddingHorizontal: 5,
+  th: {
+    fontFamily: "Helvetica-Bold",
+    textAlign: "center",
   },
-  tableRow: {
+  colNo: { width: "8%", textAlign: "center" },
+  colDesc: { width: "42%" },
+  colSatuan: { width: "10%", textAlign: "center" },
+  colPrice: { width: "22%" },
+  colKet: { width: "18%", textAlign: "center" },
+  currencyCell: {
     flexDirection: "row",
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#000000",
-    paddingVertical: 6,
+    justifyContent: "space-between",
   },
-  colNo: { width: 30, textAlign: "center" },
-  colDesc: { flex: 1 },
-  colSatuan: { width: 60, textAlign: "center" },
-  colPrice: { width: 120, textAlign: "right" },
-  colKet: { width: 80, textAlign: "center" },
-  
-  cellText: {
-    fontSize: 9,
-    paddingHorizontal: 5,
+  currencyRp: {
+    marginRight: 2,
   },
-  
+  currencyVal: {
+    textAlign: "right",
+    flex: 1,
+  },
+
+  // Terms
   termsSection: {
-    marginTop: 10,
-    marginBottom: 15,
+    marginBottom: 20,
   },
   termsTitle: {
-    fontFamily: "Times-Bold",
-    fontSize: 9.5,
     marginBottom: 4,
   },
   termsRow: {
     flexDirection: "row",
     marginBottom: 3,
-    lineHeight: 1.25,
+    lineHeight: 1.3,
   },
   termsIndex: {
     width: 15,
-    fontSize: 9,
   },
   termsText: {
     flex: 1,
-    fontSize: 9,
   },
-  
+
+  // Closing
   closingText: {
     marginBottom: 20,
     lineHeight: 1.3,
   },
-  
+
+  // Signatures
   signatureSection: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginTop: 10,
   },
-  signatureBox: {
-    width: "30%",
-    alignItems: "center",
-    textAlign: "center",
-  },
+  signatureBoxLeft: { width: "30%" },
+  signatureBoxMid: { width: "30%", alignItems: "center" },
+  signatureBoxRight: { width: "30%", alignItems: "center" },
   signatureTitle: {
-    fontSize: 9.5,
-    marginBottom: 35,
-    height: 12,
+    marginBottom: 5,
   },
   signatureImage: {
-    width: 75,
-    height: 35,
+    width: 90,
+    height: 45,
     objectFit: "contain",
-    position: "absolute",
-    top: 15,
   },
+  signatureSpace: { height: 45 },
   signatureName: {
-    fontFamily: "Times-Bold",
-    fontSize: 9.5,
-    textDecoration: "underline",
-    textTransform: "uppercase",
     marginTop: 5,
-  },
-  signatureSubtitle: {
-    fontSize: 8.5,
-    color: "#333",
-    marginTop: 1,
   },
 });
 
-
-
-const formatCurrency = (amount: number, currency: string) => {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(amount);
+const fmtAmt = (n: number) => {
+  if (!n) return "0,00";
+  return new Intl.NumberFormat("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 };
 
-// Format Date to Indonesia format: 20 Januari 2026
 const formatIndonesianDate = (dateStr: string) => {
   if (!dateStr) return "";
   try {
@@ -226,63 +207,61 @@ interface Props {
 
 export const QuotationPDF = ({ invoice, company, includePpn = false }: Props) => {
   const formattedDate = formatIndonesianDate(invoice.issue_date);
+  
+  const bankText = [company.bankName, company.bankAccount].filter(Boolean).join(" ") || "-";
+  const bankHolder = company.bankAccountHolder ? ` a.n. ${company.bankAccountHolder}` : "";
+  const paymentText = bankText !== "-" ? `Cash/Giro/Transfer ke Rek. ${bankText}${bankHolder}` : "-";
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        
         {/* Header */}
-        <View style={styles.header}>
+        <View style={styles.headerContainer}>
           <View style={styles.headerLeft}>
-            {company.logoBase64 ? (
-              <Image src={company.logoBase64} style={styles.logoLeft} />
-            ) : null}
+            {company.logoBase64 && <Image src={company.logoBase64} style={styles.logo} />}
             <View style={styles.companyInfo}>
               <Text style={styles.companyName}>{company.companyName || "CV ADITARA JAYA MAKMUR"}</Text>
-              <Text style={styles.companySubtitle}>Readymix, Building Material & General Supplier</Text>
-              {company.address && (
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Address</Text>
-                  <Text style={styles.infoColon}>:</Text>
-                  <Text style={styles.infoValue}>{company.address}</Text>
-                </View>
-              )}
-              {company.phone && (
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Telp</Text>
-                  <Text style={styles.infoColon}>:</Text>
-                  <Text style={styles.infoValue}>{company.phone}</Text>
-                </View>
-              )}
-              {company.email && (
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Email</Text>
-                  <Text style={styles.infoColon}>:</Text>
-                  <Text style={styles.infoValue}>{company.email}</Text>
-                </View>
-              )}
+              <Text style={styles.companySub}>Readymix, Building Material & General Supplier</Text>
+              <View style={styles.companyDetail}>
+                <Text style={styles.companyDetailLabel}>Address</Text>
+                <Text>: {company.address || "-"}</Text>
+              </View>
+              <View style={styles.companyDetail}>
+                <Text style={styles.companyDetailLabel}>Telp</Text>
+                <Text>: {company.phone || "-"}</Text>
+              </View>
+              <View style={styles.companyDetail}>
+                <Text style={styles.companyDetailLabel}>Email</Text>
+                <Text>: {company.email || "-"}</Text>
+              </View>
             </View>
           </View>
-          <View style={{ alignItems: "flex-end", alignSelf: "flex-end" }}>
-            <Text style={{ fontSize: 8.5, fontFamily: "Times-Bold" }}>Authorized Dealer of Jayamix</Text>
+          <View style={styles.headerRight}>
+            <Text style={styles.dealerText}>Authorized Dealer of Jayamix</Text>
           </View>
         </View>
 
-        {/* Date and Location */}
+        {/* Date */}
         <Text style={styles.dateLocation}>
-          Sidoarjo, {formattedDate}
+          {company.city || "Sidoarjo"}, {formattedDate}
         </Text>
 
         {/* Recipient Block */}
         <View style={styles.recipientBlock}>
           <Text style={styles.recipientLabel}>Kepada Yth.</Text>
-          <Text style={styles.recipientName}>{invoice.client.company || invoice.client.name}</Text>
+          <Text>{invoice.client.company || invoice.client.name}</Text>
           {invoice.client.address ? (
-            <Text style={{ fontSize: 9.5 }}>{invoice.client.address}</Text>
+            <Text>{invoice.client.address}</Text>
           ) : null}
         </View>
 
         {/* Subject */}
-        <Text style={styles.perihal}>Perihal : SURAT PENAWARAN HARGA PRODUK</Text>
+        <View style={styles.perihalBlock}>
+          <Text style={styles.perihalLabel}>Perihal</Text>
+          <Text style={styles.perihalColon}>:</Text>
+          <Text style={styles.perihalVal}>SURAT PENAWARAN HARGA PRODUK</Text>
+        </View>
 
         {/* Opening */}
         <Text style={styles.openingText}>
@@ -292,31 +271,45 @@ export const QuotationPDF = ({ invoice, company, includePpn = false }: Props) =>
 
         {/* Table */}
         <View style={styles.table}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, styles.colNo]}>No.</Text>
-            <Text style={[styles.tableHeaderCell, styles.colDesc]}>Deskripsi Produk</Text>
-            <Text style={[styles.tableHeaderCell, styles.colSatuan]}>Satuan</Text>
-            <Text style={[styles.tableHeaderCell, styles.colPrice]}>Harga</Text>
-            <Text style={[styles.tableHeaderCell, styles.colKet]}>Keterangan</Text>
+          <View style={styles.tr}>
+            <View style={[styles.tdBase, styles.th, styles.colNo]}><Text>No.</Text></View>
+            <View style={[styles.tdBase, styles.th, styles.colDesc]}><Text>Deskripsi Produk</Text></View>
+            <View style={[styles.tdBase, styles.th, styles.colSatuan]}><Text>Satuan</Text></View>
+            <View style={[styles.tdBase, styles.th, styles.colPrice]}><Text>Harga</Text></View>
+            <View style={[styles.tdBase, styles.th, styles.colKet]}><Text>Keterangan</Text></View>
           </View>
           {invoice.items.map((item, index) => {
             const unit = getUnit(item.description);
-            const qtyFormatted = formatQuantity(Number(item.quantity));
+            const priceStr = item.unit_price ? fmtAmt(Number(item.unit_price)) : "";
+            const qtyStr = item.quantity ? formatQuantity(Number(item.quantity)) : "";
             return (
-              <View key={index} style={styles.tableRow}>
-                <Text style={[styles.cellText, styles.colNo]}>{index + 1}.</Text>
-                <Text style={[styles.cellText, styles.colDesc]}>{item.description}</Text>
-                <Text style={[styles.cellText, styles.colSatuan]}>{unit}</Text>
-                <Text style={[styles.cellText, styles.colPrice]}>
-                  {formatCurrency(Number(item.unit_price), invoice.currency)}{unit ? `/${unit}` : ""}
-                </Text>
-                <Text style={[styles.cellText, styles.colKet]}>{qtyFormatted}</Text>
+              <View key={index} style={styles.tr}>
+                <View style={[styles.tdBase, styles.colNo]}>
+                  <Text>{index + 1}.</Text>
+                </View>
+                <View style={[styles.tdBase, styles.colDesc]}>
+                  <Text>{item.description}</Text>
+                </View>
+                <View style={[styles.tdBase, styles.colSatuan]}>
+                  <Text>{unit || " "}</Text>
+                </View>
+                <View style={[styles.tdBase, styles.colPrice]}>
+                  {item.unit_price ? (
+                    <View style={styles.currencyCell}>
+                      <Text style={styles.currencyRp}>Rp</Text>
+                      <Text style={styles.currencyVal}>{priceStr}{unit ? `/${unit}` : ""}</Text>
+                    </View>
+                  ) : <Text> </Text>}
+                </View>
+                <View style={[styles.tdBase, styles.colKet]}>
+                  <Text>{qtyStr || " "}</Text>
+                </View>
               </View>
             );
           })}
         </View>
 
-        {/* Terms and Conditions */}
+        {/* Terms */}
         <View style={styles.termsSection}>
           <Text style={styles.termsTitle}>Dengan ketentuan sebagai berikut :</Text>
           <View style={styles.termsRow}>
@@ -328,7 +321,7 @@ export const QuotationPDF = ({ invoice, company, includePpn = false }: Props) =>
           <View style={styles.termsRow}>
             <Text style={styles.termsIndex}>2.</Text>
             <Text style={styles.termsText}>
-              Pembayaran Cash/Giro/Transfer ke Rek. BCA 150.455.5758 a.n. ADITARA JAYA MAKMUR CV, Pembayaran sebelum pengiriman.
+              Pembayaran {paymentText}, Pembayaran sebelum pengiriman
             </Text>
           </View>
           <View style={styles.termsRow}>
@@ -356,29 +349,34 @@ export const QuotationPDF = ({ invoice, company, includePpn = false }: Props) =>
 
         {/* Signatures */}
         <View style={styles.signatureSection}>
-          <View style={styles.signatureBox}>
-            <Text style={styles.signatureTitle}>Hormat kami,</Text>
+          <View style={styles.signatureBoxLeft}>
+            <Text style={{ marginBottom: 15 }}>Hormat kami,</Text>
+            <Text style={styles.signatureTitle}>Dibuat oleh :</Text>
+            <View style={styles.signatureSpace} />
+            <Text style={styles.signatureName}>Sales</Text>
+          </View>
+
+          <View style={styles.signatureBoxMid}>
+            <Text style={{ marginBottom: 15 }}> </Text>
+            <Text style={styles.signatureTitle}>Mengetahui :</Text>
             {company.signatureBase64 ? (
               <Image src={company.signatureBase64} style={styles.signatureImage} />
-            ) : null}
-            <Text style={[styles.signatureName, { marginTop: 40 }]}>FAVIRRU B. M.</Text>
-            <Text style={styles.signatureSubtitle}>Sales Manager</Text>
+            ) : (
+              <View style={styles.signatureSpace} />
+            )}
+            <Text style={styles.signatureName}>{(invoice.user as any)?.name || "Favirru B. M."}</Text>
+            <Text>Direktur</Text>
           </View>
 
-          <View style={styles.signatureBox}>
-            <Text style={styles.signatureTitle}>Mengetahui,</Text>
-            <Text style={[styles.signatureName, { marginTop: 40 }]}>
-              {invoice.client.company || invoice.client.name}
-            </Text>
-            <Text style={styles.signatureSubtitle}>Customer</Text>
-          </View>
-
-          <View style={styles.signatureBox}>
+          <View style={styles.signatureBoxRight}>
+            <Text style={{ marginBottom: 15 }}> </Text>
             <Text style={styles.signatureTitle}>Menyetujui,</Text>
-            <Text style={[styles.signatureName, { marginTop: 40 }]}>___________________</Text>
-            <Text style={styles.signatureSubtitle}>Direktur Customer</Text>
+            <View style={styles.signatureSpace} />
+            <Text style={styles.signatureName}>{invoice.client.company || invoice.client.name}</Text>
+            <Text>Customer</Text>
           </View>
         </View>
+
       </Page>
     </Document>
   );

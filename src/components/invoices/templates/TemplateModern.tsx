@@ -1,328 +1,403 @@
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 import { Invoice } from "@/types/invoice";
 import { CompanyProfile } from "@/lib/companyProfile";
-import { getUnit, formatQuantity } from "@/lib/pdfUtils";
+import { getUnit } from "@/lib/pdfUtils";
 
 const styles = StyleSheet.create({
   page: {
-    padding: 56,
+    padding: 30,
     fontFamily: "Helvetica",
     fontSize: 9,
-    color: "#1a1a1a",
-    backgroundColor: "#ffffff",
-    lineHeight: 1.5,
+    color: "#000",
+    backgroundColor: "#fff",
   },
-
   // Header
-  header: {
+  headerContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 40,
+    marginBottom: 20,
   },
-  headerLeft: { flex: 1 },
-  logo: { width: 80, height: 36, objectFit: "contain", marginBottom: 6 },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  logo: {
+    width: 80,
+    height: 40,
+    objectFit: "contain",
+    marginRight: 10,
+  },
+  companyInfo: {
+    flexDirection: "column",
+  },
   companyName: {
-    fontSize: 13,
     fontFamily: "Helvetica-Bold",
-    color: "#111",
+    fontSize: 11,
+  },
+  companySub: {
+    fontSize: 8,
+    marginBottom: 2,
   },
   companyDetail: {
-    fontSize: 8.5,
-    color: "#888",
-    marginTop: 2,
+    fontSize: 7,
+    flexDirection: "row",
+    marginBottom: 1,
   },
-  headerRight: { alignItems: "flex-end" },
-  invoiceWord: {
-    fontSize: 26,
+  companyDetailLabel: { width: 35 },
+  headerRight: {
+    alignItems: "center",
+  },
+  // Title
+  titleText: {
+    textAlign: "center",
     fontFamily: "Helvetica-Bold",
-    color: "#111",
+    fontSize: 16,
+    letterSpacing: 1,
+    marginBottom: 20,
   },
-  invoiceNumber: {
-    fontSize: 9,
-    color: "#888",
-    marginTop: 4,
-  },
-  dateRow: { flexDirection: "row", marginTop: 3, gap: 6 },
-  dateLabel: { fontSize: 8.5, color: "#aaa" },
-  dateValue: { fontSize: 8.5, color: "#555", fontFamily: "Helvetica-Bold" },
-
-  // Divider
-  divider: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#e8e8e8",
-    marginBottom: 24,
-  },
-  thickDivider: {
-    borderBottomWidth: 2,
-    borderBottomColor: "#111",
-    marginBottom: 24,
-  },
-
-  // Billing
-  billingRow: {
+  // Info Block
+  infoBlock: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 30,
+    marginBottom: 15,
   },
-  billingBlock: { flex: 1 },
-  billingLabel: {
-    fontSize: 7.5,
-    fontFamily: "Helvetica-Bold",
-    color: "#aaa",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    marginBottom: 6,
+  infoLeft: {
+    width: "50%",
   },
-  billingName: {
-    fontSize: 10.5,
-    fontFamily: "Helvetica-Bold",
-    color: "#111",
+  infoRight: {
+    width: "40%",
   },
-  billingDetail: {
-    fontSize: 8.5,
-    color: "#666",
-    marginTop: 2,
+  infoHeading: {
+    textDecoration: "underline",
+    marginBottom: 4,
+    fontSize: 10,
   },
-  paymentBlock: { flex: 1, alignItems: "flex-end" },
-  bankName: { fontSize: 8.5, color: "#888", marginTop: 2 },
-  bankNumber: {
-    fontSize: 12,
-    fontFamily: "Helvetica-Bold",
-    color: "#111",
-    marginTop: 3,
-  },
-  bankHolder: { fontSize: 8.5, color: "#888", marginTop: 2 },
-
-  // Table
-  table: { marginBottom: 24 },
-  tableHead: {
+  infoRow: {
     flexDirection: "row",
-    borderBottomWidth: 1.5,
-    borderBottomColor: "#111",
-    paddingBottom: 6,
-    marginBottom: 0,
+    marginBottom: 2,
+  },
+  infoLabel: {
+    width: 50,
+  },
+  infoColon: {
+    width: 10,
+  },
+  infoValue: {
+    flex: 1,
+  },
+  // Table
+  table: {
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderColor: "#000",
+  },
+  tr: {
+    flexDirection: "row",
+  },
+  tdBase: {
+    borderBottomWidth: 1,
+    borderRightWidth: 1,
+    borderColor: "#000",
+    paddingVertical: 5,
+    paddingHorizontal: 4,
+    justifyContent: "center",
+    minHeight: 22,
   },
   th: {
-    fontSize: 8,
     fontFamily: "Helvetica-Bold",
-    color: "#555",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
+    textAlign: "center",
   },
-  tableRow: {
+  colNo: { width: "5%", textAlign: "center" },
+  colDesc: { width: "45%" },
+  colQty: { width: "15%", textAlign: "center" },
+  colPrice: { width: "17.5%" },
+  colTotal: { width: "17.5%" },
+  currencyCell: {
     flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-    paddingVertical: 8,
+    justifyContent: "space-between",
   },
-  td: { fontSize: 9, color: "#222" },
-
-  colNo:    { width: 20 },
-  colDesc:  { flex: 1, paddingRight: 8 },
-  colQty:   { width: 72, textAlign: "right" },
-  colPrice: { width: 80, textAlign: "right" },
-  colTotal: { width: 80, textAlign: "right" },
-
+  currencyRp: {
+    marginRight: 2,
+  },
+  currencyVal: {
+    textAlign: "right",
+    flex: 1,
+  },
   // Summary
-  summaryRow: {
+  summaryLabelCell: {
+    width: "17.5%",
+    borderBottomWidth: 1,
+    borderRightWidth: 1,
+    borderLeftWidth: 1,
+    borderColor: "#000",
+    padding: 4,
+  },
+  summaryValueCell: {
+    width: "17.5%",
+    borderBottomWidth: 1,
+    borderRightWidth: 1,
+    borderColor: "#000",
+    padding: 4,
+  },
+  // Footer
+  footerBlock: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 4,
-  },
-  summaryLeft: { fontSize: 8.5, color: "#888" },
-  summaryRight: { fontSize: 8.5, color: "#333" },
-  totalRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    borderTopWidth: 1.5,
-    borderTopColor: "#111",
-    paddingTop: 8,
-    marginTop: 4,
-  },
-  totalLeft: { fontSize: 11, fontFamily: "Helvetica-Bold", color: "#111" },
-  totalRight: { fontSize: 11, fontFamily: "Helvetica-Bold", color: "#111" },
-
-  // Notes
-  notesLabel: {
-    fontSize: 7.5,
-    fontFamily: "Helvetica-Bold",
-    color: "#aaa",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    marginBottom: 4,
     marginTop: 20,
   },
-  notesText: { fontSize: 8.5, color: "#666", lineHeight: 1.5 },
-
-  // Footer
-  footer: {
-    position: "absolute",
-    bottom: 40,
-    left: 56,
-    right: 56,
-    borderTopWidth: 1,
-    borderTopColor: "#e8e8e8",
-    paddingTop: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
+  footerLeft: {
+    width: "65%",
   },
-  footerText: { fontSize: 8, color: "#bbb" },
-  signatureBox: { alignItems: "center" },
-  signatureImg: { width: 70, height: 32, objectFit: "contain", marginBottom: 4 },
-  signatureLine: { width: 80, borderBottomWidth: 1, borderBottomColor: "#ccc", marginBottom: 4 },
-  signatureLabel: { fontSize: 8, color: "#888" },
+  footerListRow: {
+    flexDirection: "row",
+    marginBottom: 2,
+  },
+  footerListNum: { width: 12 },
+  footerListLabel: { width: 60 },
+  footerListColon: { width: 10 },
+  footerListVal: { flex: 1 },
+  footerRight: {
+    width: "35%",
+    alignItems: "center",
+  },
+  signatureName: {
+    textDecoration: "underline",
+    fontFamily: "Helvetica-Bold",
+  },
+  signatureImg: {
+    width: 100,
+    height: 60,
+    objectFit: "contain",
+    marginVertical: 5,
+  }
 });
 
-const fmt = (n: number, cur: string) =>
-  new Intl.NumberFormat("id-ID", { style: "currency", currency: cur, minimumFractionDigits: 0 }).format(n);
+const fmtAmt = (n: number) => {
+  if (!n) return "0,00";
+  return new Intl.NumberFormat("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+};
+
+const formatIndonesianDate = (dateStr: string) => {
+  if (!dateStr) return "";
+  try {
+    const parts = dateStr.split("T")[0].split("-");
+    if (parts.length !== 3) return dateStr.split("T")[0];
+    const months = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+    return `${parseInt(parts[2], 10)} ${months[parseInt(parts[1], 10) - 1]} ${parts[0]}`;
+  } catch (e) {
+    return dateStr.split("T")[0];
+  }
+};
+
+const fmtQty = (n: number) => {
+  if (!n) return "";
+  return new Intl.NumberFormat("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+};
 
 interface Props { invoice: Invoice; company: CompanyProfile; includePpn: boolean; }
 
 export const TemplateModern = ({ invoice, company, includePpn }: Props) => {
   const subtotal = invoice.items.reduce((s, it) => s + Number(it.quantity) * Number(it.unit_price), 0);
   const discount = Number(invoice.discount || 0);
-  const tax      = includePpn ? Math.round(subtotal * 0.11) : Number(invoice.tax || 0);
-  const total    = Math.max(0, subtotal - discount + tax);
+  const tax = includePpn ? Math.round(subtotal * 0.11) : Number(invoice.tax || 0);
+  const total = Math.max(0, subtotal - discount + tax);
+
+  // Pad items to 10 rows
+  const rows = [...invoice.items];
+  while (rows.length < 10) {
+    rows.push({ description: "", quantity: 0, unit_price: 0, id: "" } as any);
+  }
+
+  const bankText = [company.bankName, company.bankAccount].filter(Boolean).join(" ") || "-";
+  const bankHolder = company.bankAccountHolder ? ` a.n. ${company.bankAccountHolder}` : "";
+  const paymentText = bankText !== "-" ? `Cash/Giro/Transfer ke Rek. ${bankText}${bankHolder}` : "-";
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-
-        {/* ── Header ── */}
-        <View style={styles.header}>
+        
+        {/* Header */}
+        <View style={styles.headerContainer}>
           <View style={styles.headerLeft}>
-            {company.logoBase64
-              ? <Image src={company.logoBase64} style={styles.logo} />
-              : <Text style={styles.companyName}>{company.companyName || "Perusahaan"}</Text>}
-            {company.companyName && company.logoBase64 &&
-              <Text style={styles.companyName}>{company.companyName}</Text>}
-            {company.address &&
-              <Text style={styles.companyDetail}>{company.address}{company.city ? `, ${company.city}` : ""}</Text>}
-            {company.phone && <Text style={styles.companyDetail}>{company.phone}</Text>}
-            {company.email && <Text style={styles.companyDetail}>{company.email}</Text>}
-          </View>
-
-          <View style={styles.headerRight}>
-            <Text style={styles.invoiceWord}>INVOICE</Text>
-            <Text style={styles.invoiceNumber}>{invoice.invoice_number}</Text>
-            <View style={[styles.dateRow, { marginTop: 8 }]}>
-              <Text style={styles.dateLabel}>Tanggal</Text>
-              <Text style={styles.dateValue}>{invoice.issue_date}</Text>
-            </View>
-            {invoice.due_date && (
-              <View style={styles.dateRow}>
-                <Text style={styles.dateLabel}>Jatuh Tempo</Text>
-                <Text style={styles.dateValue}>{invoice.due_date}</Text>
+            {company.logoBase64 && <Image src={company.logoBase64} style={styles.logo} />}
+            <View style={styles.companyInfo}>
+              <Text style={styles.companyName}>{company.companyName || "CV ADITARA JAYA MAKMUR"}</Text>
+              <Text style={styles.companySub}>Readymix, Building Material & General Supplier</Text>
+              <View style={styles.companyDetail}>
+                <Text style={styles.companyDetailLabel}>Address</Text>
+                <Text>: {company.address || "-"}</Text>
               </View>
-            )}
-          </View>
-        </View>
-
-        <View style={styles.thickDivider} />
-
-        {/* ── Bill To + Payment ── */}
-        <View style={styles.billingRow}>
-          <View style={styles.billingBlock}>
-            <Text style={styles.billingLabel}>Kepada</Text>
-            <Text style={styles.billingName}>{invoice.client.name}</Text>
-            {invoice.client.company &&
-              <Text style={styles.billingDetail}>{invoice.client.company}</Text>}
-            {invoice.client.address &&
-              <Text style={styles.billingDetail}>{invoice.client.address}</Text>}
-            {invoice.client.phone &&
-              <Text style={styles.billingDetail}>{invoice.client.phone}</Text>}
-            {invoice.client.email &&
-              <Text style={styles.billingDetail}>{invoice.client.email}</Text>}
-          </View>
-
-          {(company.bankName || company.bankAccount) && (
-            <View style={styles.paymentBlock}>
-              <Text style={styles.billingLabel}>Pembayaran ke</Text>
-              {company.bankName && <Text style={styles.bankName}>{company.bankName}</Text>}
-              {company.bankAccount && <Text style={styles.bankNumber}>{company.bankAccount}</Text>}
-              {company.bankAccountHolder &&
-                <Text style={styles.bankHolder}>a.n {company.bankAccountHolder}</Text>}
+              <View style={styles.companyDetail}>
+                <Text style={styles.companyDetailLabel}>Telp</Text>
+                <Text>: {company.phone || "-"}</Text>
+              </View>
+              <View style={styles.companyDetail}>
+                <Text style={styles.companyDetailLabel}>Email</Text>
+                <Text>: {company.email || "-"}</Text>
+              </View>
             </View>
-          )}
+          </View>
+          <View style={styles.headerRight}>
+            {/* Can render secondary logo here if provided */}
+          </View>
         </View>
 
-        {/* ── Table ── */}
+        {/* Title */}
+        <Text style={styles.titleText}>INVOICE</Text>
+
+        {/* Info Block */}
+        <View style={styles.infoBlock}>
+          <View style={styles.infoLeft}>
+            <Text style={styles.infoHeading}>CUSTOMER :</Text>
+            <Text>{invoice.client.name}</Text>
+            {invoice.client.address && <Text>{invoice.client.address}</Text>}
+          </View>
+          <View style={styles.infoRight}>
+            <Text style={styles.infoHeading}>DETAIL :</Text>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Date</Text>
+              <Text style={styles.infoColon}>:</Text>
+              <Text style={styles.infoValue}>{formatIndonesianDate(invoice.issue_date)}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Nomor</Text>
+              <Text style={styles.infoColon}>:</Text>
+              <Text style={styles.infoValue}>{invoice.invoice_number}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Delivery</Text>
+              <Text style={styles.infoColon}>:</Text>
+              <Text style={styles.infoValue}>{invoice.due_date ? formatIndonesianDate(invoice.due_date) : "-"}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Time</Text>
+              <Text style={styles.infoColon}>:</Text>
+              <Text style={styles.infoValue}>-</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Table */}
         <View style={styles.table}>
-          <View style={styles.tableHead}>
-            <Text style={[styles.th, styles.colNo]}>#</Text>
-            <Text style={[styles.th, styles.colDesc]}>Deskripsi</Text>
-            <Text style={[styles.th, styles.colQty]}>Qty</Text>
-            <Text style={[styles.th, styles.colPrice]}>Harga</Text>
-            <Text style={[styles.th, styles.colTotal]}>Total</Text>
+          {/* Header */}
+          <View style={styles.tr}>
+            <View style={[styles.tdBase, styles.th, styles.colNo]}><Text>No.</Text></View>
+            <View style={[styles.tdBase, styles.th, styles.colDesc]}><Text>Description</Text></View>
+            <View style={[styles.tdBase, styles.th, styles.colQty]}><Text>Quantity</Text></View>
+            <View style={[styles.tdBase, styles.th, styles.colPrice]}><Text>Unit Price</Text></View>
+            <View style={[styles.tdBase, styles.th, styles.colTotal]}><Text>Total Amount</Text></View>
           </View>
 
-          {invoice.items.map((item, i) => {
+          {/* Rows */}
+          {rows.map((item, i) => {
+            const hasData = !!item.description;
             const unit = getUnit(item.description);
-            const qty  = formatQuantity(Number(item.quantity));
+            const qtyStr = item.quantity ? `${fmtQty(Number(item.quantity))} ${unit || ""}`.trim() : "";
+            const priceStr = item.unit_price ? fmtAmt(Number(item.unit_price)) : "";
+            const totalStr = (item.quantity && item.unit_price) ? fmtAmt(Number(item.quantity) * Number(item.unit_price)) : "";
+
             return (
-              <View key={i} style={styles.tableRow}>
-                <Text style={[styles.td, styles.colNo]}>{i + 1}</Text>
-                <Text style={[styles.td, styles.colDesc]}>{item.description}</Text>
-                <Text style={[styles.td, styles.colQty]}>{unit ? `${qty} ${unit}` : qty}</Text>
-                <Text style={[styles.td, styles.colPrice]}>{fmt(Number(item.unit_price), invoice.currency)}</Text>
-                <Text style={[styles.td, styles.colTotal]}>{fmt(Number(item.quantity) * Number(item.unit_price), invoice.currency)}</Text>
+              <View key={i} style={styles.tr}>
+                <View style={[styles.tdBase, styles.colNo]}><Text>{hasData ? i + 1 : "\u00A0"}</Text></View>
+                <View style={[styles.tdBase, styles.colDesc]}><Text>{item.description || "\u00A0"}</Text></View>
+                <View style={[styles.tdBase, styles.colQty]}><Text>{qtyStr || "\u00A0"}</Text></View>
+                <View style={[styles.tdBase, styles.colPrice]}>
+                  {hasData && item.unit_price ? (
+                    <View style={styles.currencyCell}>
+                      <Text style={styles.currencyRp}>Rp</Text>
+                      <Text style={styles.currencyVal}>{priceStr}</Text>
+                    </View>
+                  ) : <Text>{"\u00A0"}</Text>}
+                </View>
+                <View style={[styles.tdBase, styles.colTotal]}>
+                  {hasData && (item.quantity || item.unit_price) ? (
+                    <View style={styles.currencyCell}>
+                      <Text style={styles.currencyRp}>Rp</Text>
+                      <Text style={styles.currencyVal}>{totalStr}</Text>
+                    </View>
+                  ) : <Text>{"\u00A0"}</Text>}
+                </View>
               </View>
             );
           })}
-        </View>
 
-        {/* ── Summary ── */}
-        <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: 30 }}>
-          <View style={{ width: 220 }}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLeft}>Subtotal</Text>
-              <Text style={styles.summaryRight}>{fmt(subtotal, invoice.currency)}</Text>
+          {/* Summary */}
+          <View style={styles.tr}>
+            <View style={{ width: "65%" }} />
+            <View style={styles.summaryLabelCell}><Text>SUBTOTAL</Text></View>
+            <View style={styles.summaryValueCell}>
+              <View style={styles.currencyCell}>
+                <Text style={styles.currencyRp}>Rp</Text>
+                <Text style={styles.currencyVal}>{fmtAmt(subtotal)}</Text>
+              </View>
             </View>
-            {discount > 0 && (
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLeft}>Diskon</Text>
-                <Text style={styles.summaryRight}>- {fmt(discount, invoice.currency)}</Text>
+          </View>
+          
+          <View style={styles.tr}>
+            <View style={{ width: "65%" }} />
+            <View style={styles.summaryLabelCell}><Text>{includePpn ? "PPN 11%" : "PAJAK"}</Text></View>
+            <View style={styles.summaryValueCell}>
+              <View style={styles.currencyCell}>
+                <Text style={styles.currencyRp}>Rp</Text>
+                <Text style={styles.currencyVal}>{fmtAmt(tax)}</Text>
               </View>
-            )}
-            {tax > 0 && (
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLeft}>{includePpn ? "PPN 11%" : "Pajak"}</Text>
-                <Text style={styles.summaryRight}>{fmt(tax, invoice.currency)}</Text>
+            </View>
+          </View>
+
+          <View style={styles.tr}>
+            <View style={{ width: "65%" }} />
+            <View style={styles.summaryLabelCell}><Text>TOTAL</Text></View>
+            <View style={styles.summaryValueCell}>
+              <View style={styles.currencyCell}>
+                <Text style={styles.currencyRp}>Rp</Text>
+                <Text style={styles.currencyVal}>{fmtAmt(total)}</Text>
               </View>
-            )}
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLeft}>Total</Text>
-              <Text style={styles.totalRight}>{fmt(total, invoice.currency)}</Text>
             </View>
           </View>
         </View>
 
-        {/* ── Notes & Terms ── */}
-        {invoice.notes && (
-          <>
-            <Text style={styles.notesLabel}>Catatan</Text>
-            <Text style={styles.notesText}>{invoice.notes}</Text>
-          </>
-        )}
-        {invoice.terms && (
-          <>
-            <Text style={[styles.notesLabel, { marginTop: invoice.notes ? 12 : 20 }]}>Syarat Pembayaran</Text>
-            <Text style={styles.notesText}>{invoice.terms}</Text>
-          </>
-        )}
-
-        {/* ── Footer ── */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            {company.email || "Terima kasih atas kepercayaan Anda."}
-          </Text>
-          <View style={styles.signatureBox}>
-            {company.signatureBase64
-              ? <Image src={company.signatureBase64} style={styles.signatureImg} />
-              : <View style={styles.signatureLine} />}
-            <Text style={styles.signatureLabel}>{company.companyName || "Hormat Kami"}</Text>
+        {/* Footer / Notes */}
+        <View style={styles.footerBlock}>
+          <View style={styles.footerLeft}>
+            <View style={styles.footerListRow}>
+              <Text style={styles.footerListNum}>1.</Text>
+              <Text style={styles.footerListLabel}>Harga</Text>
+              <Text style={styles.footerListColon}>:</Text>
+              <Text style={styles.footerListVal}>-</Text>
+            </View>
+            <View style={styles.footerListRow}>
+              <Text style={styles.footerListNum}>2.</Text>
+              <Text style={styles.footerListLabel}>Pembayaran</Text>
+              <Text style={styles.footerListColon}>:</Text>
+              <Text style={styles.footerListVal}>{paymentText}</Text>
+            </View>
+            <View style={styles.footerListRow}>
+              <Text style={styles.footerListNum}>3.</Text>
+              <Text style={styles.footerListLabel}>Mohon</Text>
+              <Text style={styles.footerListColon}>:</Text>
+              <Text style={styles.footerListVal}>Konfirmasi</Text>
+            </View>
+            <View style={styles.footerListRow}>
+              <Text style={styles.footerListNum}>4.</Text>
+              <Text style={styles.footerListLabel}>Keterangan</Text>
+              <Text style={styles.footerListColon}>:</Text>
+              <Text style={styles.footerListVal}>{invoice.notes || "-"}</Text>
+            </View>
+          </View>
+          
+          <View style={styles.footerRight}>
+            <Text>Hormat Kami,</Text>
+            <Text>{company.companyName || "CV ADITARA JAYA MAKMUR"}</Text>
+            <View style={{ height: 30 }} />
+            {company.signatureBase64 ? (
+              <Image src={company.signatureBase64} style={styles.signatureImg} />
+            ) : (
+              <View style={{ height: 60 }} />
+            )}
+            <Text style={styles.signatureName}>{(invoice.user as any)?.name || "FAVIRRU BAGUS MAHARDHIKA"}</Text>
           </View>
         </View>
 
@@ -330,3 +405,4 @@ export const TemplateModern = ({ invoice, company, includePpn }: Props) => {
     </Document>
   );
 };
+

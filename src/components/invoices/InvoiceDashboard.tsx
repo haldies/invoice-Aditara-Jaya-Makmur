@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { FilePlus, BarChart3, Receipt, TrendingUp, Landmark, ShieldCheck, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RevenueChart } from "./RevenueChart";
@@ -351,7 +350,7 @@ export function InvoiceDashboard() {
           {/* Sisa Saldo per Produk Panel (Moved from Finance tab) */}
           <section className="rounded-lg border bg-card p-4 space-y-3">
             <h2 className="text-xs font-bold text-foreground uppercase tracking-wide flex items-center gap-1.5">
-              <TrendingUp className="w-4 h-4 text-blue-600" /> Rincian Sisa Saldo PO per Produk
+              Rincian Sisa Saldo PO per Produk
             </h2>
             {stats.sisaStats.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
@@ -393,7 +392,6 @@ export function InvoiceDashboard() {
                 <h2 className="text-xs font-bold text-foreground uppercase tracking-wide">Invoice Terbaru</h2>
                 <Button asChild size="sm" variant="outline">
                   <Link href="/tracker/invoices/new">
-                    <FilePlus className="mr-1.5 h-3.5 w-3.5" />
                     Baru
                   </Link>
                 </Button>
@@ -428,7 +426,6 @@ export function InvoiceDashboard() {
           <section className="rounded-lg border bg-card p-4 space-y-3">
             <div>
               <h2 className="text-xs font-bold text-foreground uppercase tracking-wide flex items-center gap-1.5">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-amber-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                 Top Buyer & Pelanggan Royal
               </h2>
               <p className="text-[11px] text-muted-foreground mt-0.5">Pelanggan dengan total transaksi tertinggi berdasarkan periode yang dipilih.</p>
@@ -455,9 +452,9 @@ export function InvoiceDashboard() {
                       const deal = buyer.totalDeal;
                       const count = buyer.invoiceCount;
                       let tier = { label: "Bronze", color: "bg-orange-100 text-orange-700" };
-                      if (deal >= 1_000_000_000 || count >= 20) tier = { label: "💎 Diamond", color: "bg-purple-100 text-purple-700" };
-                      else if (deal >= 500_000_000 || count >= 10) tier = { label: "🥇 Gold", color: "bg-amber-100 text-amber-700" };
-                      else if (deal >= 100_000_000 || count >= 5) tier = { label: "🥈 Silver", color: "bg-slate-100 text-slate-700" };
+                      if (deal >= 1_000_000_000 || count >= 20) tier = { label: "Diamond", color: "bg-purple-100 text-purple-700" };
+                      else if (deal >= 500_000_000 || count >= 10) tier = { label: "Gold", color: "bg-amber-100 text-amber-700" };
+                      else if (deal >= 100_000_000 || count >= 5) tier = { label: "Silver", color: "bg-slate-100 text-slate-700" };
                       const lastOrder = buyer.lastOrderDate
                         ? new Date(buyer.lastOrderDate).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
                         : "-";
@@ -504,7 +501,6 @@ export function InvoiceDashboard() {
           <section className="grid grid-cols-2 overflow-hidden rounded-lg border bg-card md:grid-cols-3 lg:grid-cols-5">
             <div className="p-4">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase">
-                <Landmark className="w-3.5 h-3.5 text-primary" />
                 Total Harga Deal
               </div>
               <p className="mt-1 truncate text-lg font-bold text-foreground">
@@ -514,7 +510,6 @@ export function InvoiceDashboard() {
             </div>
             <div className="p-4 border-t md:border-t-0 md:border-l">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase">
-                <Landmark className="w-3.5 h-3.5 text-destructive" />
                 Total HPP Terpakai
               </div>
               <p className="mt-1 truncate text-lg font-bold text-foreground">
@@ -524,7 +519,6 @@ export function InvoiceDashboard() {
             </div>
             <div className="p-4 border-t md:border-t-0 border-l">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase">
-                <Landmark className="w-3.5 h-3.5 text-orange-600" />
                 Total Uang Keluar
               </div>
               <p className="mt-1 truncate text-lg font-bold text-orange-600">
@@ -534,7 +528,6 @@ export function InvoiceDashboard() {
             </div>
             <div className="p-4 border-t md:border-t-0 border-l">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                 Laba Bersih
               </div>
               <p className={`mt-1 truncate text-lg font-bold ${stats.grossProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
@@ -679,7 +672,6 @@ export function InvoiceDashboard() {
                       disabled={marginPage === 1}
                       onClick={() => setMarginPage((p) => Math.max(1, p - 1))}
                     >
-                      <ChevronLeft className="h-3.5 w-3.5 mr-1" />
                       Sebelumnya
                     </Button>
                     <span className="px-2.5 font-semibold text-foreground">
@@ -693,7 +685,6 @@ export function InvoiceDashboard() {
                       onClick={() => setMarginPage((p) => Math.min(totalMarginPages, p + 1))}
                     >
                       Selanjutnya
-                      <ChevronRight className="h-3.5 w-3.5 ml-1" />
                     </Button>
                   </div>
                 </div>
@@ -735,7 +726,6 @@ export function InvoiceDashboard() {
                       <td className="p-4 align-middle text-right font-black text-slate-800">Rp {s.totalRevenue.toLocaleString("id-ID")}</td>
                       <td className="p-4 align-middle text-right font-bold text-emerald-600">Rp {s.totalCommission.toLocaleString("id-ID")}</td>
                       <td className="p-4 align-middle text-muted-foreground">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
                       </td>
                     </tr>
                   ))}
