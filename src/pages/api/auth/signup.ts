@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { createAppSession, hashPassword } from "@/lib/authLocal";
 
 const signupSchema = z.object({
-  email: z.string().email(),
+  email: z.string().min(3),
   password: z.string().min(8),
 });
 

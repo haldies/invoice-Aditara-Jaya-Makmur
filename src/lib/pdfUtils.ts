@@ -87,3 +87,28 @@ export const formatQtyWithUnit = (description: string, qty: number): string => {
   const formattedQty = formatQuantity(qty);
   return unit ? `${formattedQty} ${unit}` : formattedQty;
 };
+
+export const formatClientAddress = (client: any): string => {
+  if (!client) return "";
+  const parts = [client.address, client.district, client.city, client.province, client.postal_code];
+  return parts.filter((p) => p && p.trim() !== "").join(", ");
+};
+
+export const generatePdfDocumentNumber = (docType: string, invoice: any): string => {
+  const dateObj = new Date(invoice.issue_date || Date.now());
+  const yyyy = dateObj.getFullYear();
+  const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const dd = String(dateObj.getDate()).padStart(2, '0');
+  const dateStr = `${yyyy}${mm}${dd}`;
+
+  const invNum = invoice.invoice_number || "";
+  const parts = invNum.split("-");
+  const urut = parts.length > 1 ? parts[parts.length - 1] : invNum;
+
+  let prefix = "INV";
+  if (docType === "po") prefix = "PO";
+  if (docType === "quotation") prefix = "PNW";
+  if (docType === "receipt") prefix = "KWT";
+
+  return `${prefix}-${dateStr}-${urut}`;
+};

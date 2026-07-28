@@ -1,7 +1,7 @@
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 import { Invoice } from "@/types/invoice";
 import { CompanyProfile } from "@/lib/companyProfile";
-import { getUnit, formatQuantity } from "@/lib/pdfUtils";
+import { getUnit, formatQuantity, formatClientAddress } from "@/lib/pdfUtils";
 
 const styles = StyleSheet.create({
   page: {
@@ -289,7 +289,7 @@ export const ReceiptPDF = ({ invoice, company, includePpn }: Props) => {
           <Text style={styles.label}>ALAMAT</Text>
           <Text style={styles.colon}>:</Text>
           <View style={styles.valueContainer}>
-            <Text style={styles.valueText}>{invoice.client.address || "-"}</Text>
+            <Text style={styles.valueText}>{formatClientAddress(invoice.client) || "-"}</Text>
           </View>
         </View>
 

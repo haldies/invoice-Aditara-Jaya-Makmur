@@ -12,9 +12,10 @@ export default async function handler(
 
   switch (req.method) {
     case "GET": {
-      const { status, search, client_id, sales, product, city, sort, page, limit } = req.query;
+      const { status, payment_status, search, client_id, sales, product, city, sort, page, limit } = req.query;
       const invoices = await invoiceRepo.listInvoices(actor, {
         status: status as any,
+        payment_status: payment_status as any,
         search: search as string | undefined,
         client_id: client_id as string | undefined,
         sales: sales as string | undefined,

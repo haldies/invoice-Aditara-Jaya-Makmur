@@ -8,8 +8,11 @@ import { useRouter } from "next/router";
 import { Invoice, InvoiceItemInput } from "@/types/invoice";
 import { useInvoices } from "@/hooks/useInvoices";
 import { usePresetItems } from "@/hooks/usePresetItems";
+import { Plus, Trash2, ArrowRight, Save, Receipt, FileText, ChevronRight } from "lucide-react";
+import { PdfAction } from "@/lib/pdfExport";
 import { loadCompanyProfile } from "@/lib/companyProfile";
-import { fmt, fmtDate, handleDownloadPDF } from "./stageUtils";
+import { PdfActionButton } from "./PdfActionButton";
+import { fmt, fmtDate, handleDownloadPDF, handlePdfAction } from "./stageUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,9 +24,6 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Plus, Trash2, Save, Download, FileText, ArrowRight, ChevronRight,
-} from "lucide-react";
 
 interface Props {
   invoice: Invoice;
@@ -42,7 +42,6 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
       actual_quantity: i.actual_quantity,
       unit_price: i.unit_price,
       buy_in_price: i.buy_in_price || 0,
-      commission_rate: i.commission_rate || 5000,
       sort_order: i.sort_order,
     }))
   );
@@ -82,7 +81,6 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
           actual_quantity: null,
           unit_price: Number(preset.unit_price) || 0,
           buy_in_price: Number(preset.buy_in_price) || 0,
-          commission_rate: 5000,
           sort_order: prev.length,
         },
       ];
@@ -94,7 +92,7 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
   const addBlankItem = () => {
     setItems((prev) => [
       ...prev,
-      { description: "", quantity: 1, actual_quantity: null, unit_price: 0, buy_in_price: 0, commission_rate: 5000, sort_order: prev.length },
+      { description: "", quantity: 1, actual_quantity: null, unit_price: 0, buy_in_price: 0, sort_order: prev.length },
     ]);
   };
 
@@ -123,7 +121,7 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
     }
   };
 
-  const downloadQuotation = () => {
+  const downloadQuotation = (action: PdfAction) => {
     const company = loadCompanyProfile();
     const updatedInvoice: Invoice = {
       ...invoice,
@@ -137,15 +135,14 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
           actual_quantity: null,
           unit_price: Number(item.unit_price || 0),
           buy_in_price: Number(item.buy_in_price || 0),
-          commission_rate: Number(item.commission_rate || 5000),
           line_total: Number(item.quantity || 0) * Number(item.unit_price || 0),
           sort_order: idx,
         })),
     };
-    handleDownloadPDF("quotation", updatedInvoice, company, false, setIsPdfLoading);
+    handlePdfAction(action, "quotation", updatedInvoice, company, false, setIsPdfLoading);
   };
 
-  const downloadInvoice = () => {
+  const downloadInvoice = (action: PdfAction) => {
     const company = loadCompanyProfile();
     const updatedInvoice: Invoice = {
       ...invoice,
@@ -159,12 +156,11 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
           actual_quantity: null,
           unit_price: Number(item.unit_price || 0),
           buy_in_price: Number(item.buy_in_price || 0),
-          commission_rate: Number(item.commission_rate || 5000),
           line_total: Number(item.quantity || 0) * Number(item.unit_price || 0),
           sort_order: idx,
         })),
     };
-    handleDownloadPDF("invoice", updatedInvoice, company, false, setIsPdfLoading);
+    handlePdfAction(action, "invoice", updatedInvoice, company, false, setIsPdfLoading);
   };
 
   return (
@@ -316,9 +312,28 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
 
         {/* Total */}
         {items.length > 0 && (
-          <div className="flex justify-between items-center px-3 py-3 bg-slate-50 dark:bg-slate-900/40 rounded-xl border font-bold text-foreground">
-            <span className="text-sm">Total Estimasi</span>
-            <span className="text-lg">{fmt(subtotal)}</span>
+          <div className="bg-slate-50 dark:bg-slate-900/40 border p-4 space-y-2 text-sm rounded-xl">
+            <div className="flex justify-between text-muted-foreground text-xs">
+              <span>Subtotal</span><span className="font-semibold text-foreground">{fmt(subtotal)}</span>
+            </div>
+            {(invoice.discount || 0) > 0 && (
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Diskon</span><span className="font-semibold text-red-600">- {fmt(invoice.discount)}</span>
+              </div>
+            )}
+            {(invoice.tax || 0) > 0 && (
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>PPN 11%</span><span className="font-semibold">+ {fmt(invoice.tax)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Ongkos Kirim</span>
+              <span className="font-semibold">{(invoice.shipping_fee || 0) > 0 ? `+ ${fmt(invoice.shipping_fee)}` : "Rp 0"}</span>
+            </div>
+            <div className="flex justify-between items-center pt-2 border-t font-extrabold text-foreground">
+              <span className="text-sm">Total Estimasi</span>
+              <span className="text-lg">{fmt(Math.max(0, subtotal - (invoice.discount || 0) + (invoice.tax || 0) + (invoice.shipping_fee || 0)))}</span>
+            </div>
           </div>
         )}
       </div>
@@ -338,27 +353,20 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
         </Button>
 
         {/* Cetak */}
-        <Button
-          type="button"
-          onClick={downloadQuotation}
-          disabled={isPdfLoading}
-          variant="outline"
-          className="h-11 font-bold text-xs px-3 border-primary text-primary"
-        >
-          <Download className="h-4 w-4 mr-1" />
-          Penawaran
-        </Button>
-
-        <Button
-          type="button"
-          onClick={downloadInvoice}
-          disabled={isPdfLoading}
-          variant="outline"
-          className="h-11 font-bold text-xs px-3 border-primary text-primary hover:bg-primary/10"
-        >
-          <FileText className="h-4 w-4 mr-1" />
-          Invoice
-        </Button>
+        <PdfActionButton
+          label="Penawaran"
+          icon={FileText}
+          isLoading={isPdfLoading}
+          onAction={downloadQuotation}
+          className="h-10 text-xs font-bold gap-2 text-slate-700 bg-white"
+        />
+        <PdfActionButton
+          label="Invoice"
+          icon={Receipt}
+          isLoading={isPdfLoading}
+          onAction={downloadInvoice}
+          className="h-10 text-xs font-bold gap-2 border-primary text-primary hover:bg-primary/10 bg-white"
+        />
 
         {/* Jadikan Tagihan */}
         <AlertDialog>

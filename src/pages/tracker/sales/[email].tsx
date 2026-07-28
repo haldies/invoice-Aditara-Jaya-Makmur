@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { ReactElement } from "react";
-import { ArrowLeft, Package, Receipt, TrendingUp, Banknote, BarChart3 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, Legend,
@@ -62,7 +62,7 @@ export default function SalesDetailPage() {
       for (const item of inv.items || []) {
         const qty = item.actual_quantity != null ? Number(item.actual_quantity) : Number(item.quantity || 0);
         const rev = qty * Number(item.unit_price || 0);
-        const comm = qty * Number((item as any).commission_rate ?? 5000);
+        const comm = qty * Math.max(0, Number(item.unit_price || 0) - Number((item as any).ajm_price || 0));
 
         totalVolume += qty;
         totalRevenue += rev;
@@ -142,41 +142,38 @@ export default function SalesDetailPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase text-muted-foreground">
-            <Receipt className="h-3.5 w-3.5 text-primary" /> Total Invoice
+        <div className="rounded-lg border bg-card p-4">
+          <div className="text-[10px] font-semibold uppercase text-muted-foreground">
+            Total Invoice
           </div>
-          <p className="mt-2 text-2xl font-black text-foreground">{data.invoiceCount}</p>
+          <p className="mt-1 text-2xl font-bold text-foreground">{data.invoiceCount}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase text-muted-foreground">
-            <Package className="h-3.5 w-3.5 text-blue-500" /> Total Volume
+        <div className="rounded-lg border bg-card p-4 border-l">
+          <div className="text-[10px] font-semibold uppercase text-muted-foreground">
+            Total Volume
           </div>
-          <p className="mt-2 text-2xl font-black text-foreground">
+          <p className="mt-1 text-2xl font-bold text-foreground">
             {data.totalVolume.toLocaleString("id-ID", { maximumFractionDigits: 2 })}
-            <span className="ml-1 text-sm font-semibold text-muted-foreground">m³</span>
+            <span className="ml-1 text-sm font-medium text-muted-foreground">m³</span>
           </p>
         </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase text-muted-foreground">
-            <TrendingUp className="h-3.5 w-3.5 text-indigo-500" /> Total Revenue
+        <div className="rounded-lg border bg-card p-4 border-t md:border-t-0 md:border-l">
+          <div className="text-[10px] font-semibold uppercase text-muted-foreground">
+            Total Revenue
           </div>
-          <p className="mt-2 text-xl font-black text-foreground">{formatRp(data.totalRevenue)}</p>
+          <p className="mt-1 text-xl font-bold text-foreground">{formatRp(data.totalRevenue)}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase text-muted-foreground">
-            <Banknote className="h-3.5 w-3.5 text-emerald-500" /> Est. Komisi
+        <div className="rounded-lg border bg-card p-4 border-t md:border-t-0 border-l">
+          <div className="text-[10px] font-semibold uppercase text-muted-foreground">
+            Est. Komisi
           </div>
-          <p className="mt-2 text-xl font-black text-emerald-600">{formatRp(data.totalCommission)}</p>
+          <p className="mt-1 text-xl font-bold text-emerald-600">{formatRp(data.totalCommission)}</p>
         </div>
       </div>
 
       {/* Monthly Revenue Bar Chart */}
-      <div className="rounded-xl border bg-card p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-bold text-foreground">Omset Bulanan (Tahun Ini)</h2>
-        </div>
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">Omset Bulanan (Tahun Ini)</h2>
         <div className="h-[260px] w-full">
           <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <BarChart data={data.monthlyData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
@@ -214,8 +211,8 @@ export default function SalesDetailPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Volume per Month */}
-        <div className="rounded-xl border bg-card p-4 space-y-3">
-          <h2 className="text-sm font-bold text-foreground">Volume Pengiriman Bulanan (m³)</h2>
+        <div className="rounded-lg border bg-card p-4 space-y-3">
+          <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">Volume Pengiriman Bulanan (m³)</h2>
           <div className="h-[220px] w-full">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <BarChart data={data.monthlyData} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
@@ -234,8 +231,8 @@ export default function SalesDetailPage() {
         </div>
 
         {/* Product Breakdown */}
-        <div className="rounded-xl border bg-card p-4 space-y-3">
-          <h2 className="text-sm font-bold text-foreground">Produk Terlaris</h2>
+        <div className="rounded-lg border bg-card p-4 space-y-3">
+          <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">Produk Terlaris</h2>
           {data.productData.length === 0 ? (
             <p className="text-sm text-muted-foreground italic py-4 text-center">Belum ada data produk.</p>
           ) : (
@@ -268,8 +265,8 @@ export default function SalesDetailPage() {
       </div>
 
       {/* Product Table */}
-      <div className="rounded-xl border bg-card p-4 space-y-3">
-        <h2 className="text-sm font-bold text-foreground">Rincian Produk</h2>
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">Rincian Produk</h2>
         <div className="relative w-full overflow-auto rounded-lg border">
           <table className="w-full caption-bottom text-sm">
             <thead className="bg-muted/40">

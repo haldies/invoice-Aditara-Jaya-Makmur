@@ -11,11 +11,12 @@ import { useAuth } from "@/hooks/useAuth";
 // Per-stage components
 import { SalesPenawaranView } from "@/components/invoices/stages/SalesPenawaranView";
 import { SalesReadOnlyView } from "@/components/invoices/stages/SalesReadOnlyView";
-import { AdminPenawaranView } from "@/components/invoices/stages/AdminPenawaranView";
+import { InvoiceForm } from "@/components/invoices/InvoiceForm";
 import { TagihanView } from "@/components/invoices/stages/TagihanView";
 import { POView } from "@/components/invoices/stages/POView";
 import { PengirimanView } from "@/components/invoices/stages/PengirimanView";
 import { SelesaiView } from "@/components/invoices/stages/SelesaiView";
+import { PdfHistory } from "@/components/invoices/PdfHistory";
 
 function InvoiceDetailPage() {
   const router = useRouter();
@@ -49,39 +50,46 @@ function InvoiceDetailPage() {
     setInvoice(updated);
   };
 
-  // --- Route to correct stage component ---
-  if (isSales) {
-    if (status === "penawaran") {
-      return <SalesPenawaranView invoice={currentInvoice} onUpdated={handleUpdated} />;
+    let viewContent: ReactElement | null = null;
+    
+    if (isSales) {
+      if (status === "penawaran") {
+        viewContent = <SalesPenawaranView invoice={currentInvoice} onUpdated={handleUpdated} />;
+      } else {
+        viewContent = <SalesReadOnlyView invoice={currentInvoice} />;
+      }
+    } else if (isAdmin) {
+      if (status === "penawaran") {
+        viewContent = <InvoiceForm invoice={currentInvoice} />;
+      } else if (status === "tagihan") {
+        viewContent = <TagihanView invoice={currentInvoice} onUpdated={handleUpdated} />;
+      } else if (status === "po") {
+        viewContent = <POView invoice={currentInvoice} onUpdated={handleUpdated} />;
+      } else if (status === "pengiriman") {
+        viewContent = <PengirimanView invoice={currentInvoice} onUpdated={handleUpdated} />;
+      } else if (status === "selesai" || status === "batal") {
+        viewContent = <SelesaiView invoice={currentInvoice} onUpdated={handleUpdated} isSales={false} />;
+      }
     }
-    // All other stages: read-only for sales
-    return <SalesReadOnlyView invoice={currentInvoice} />;
-  }
 
-  if (isAdmin) {
-    if (status === "penawaran") {
-      return <AdminPenawaranView invoice={currentInvoice} onUpdated={handleUpdated} />;
+    if (!viewContent) {
+      viewContent = (
+        <div className="p-8 text-center text-muted-foreground text-sm">
+          Tampilan untuk tahap ini belum tersedia.
+        </div>
+      );
     }
-    if (status === "tagihan") {
-      return <TagihanView invoice={currentInvoice} onUpdated={handleUpdated} />;
-    }
-    if (status === "po") {
-      return <POView invoice={currentInvoice} onUpdated={handleUpdated} />;
-    }
-    if (status === "pengiriman") {
-      return <PengirimanView invoice={currentInvoice} onUpdated={handleUpdated} />;
-    }
-    if (status === "selesai" || status === "batal") {
-      return <SelesaiView invoice={currentInvoice} onUpdated={handleUpdated} isSales={false} />;
-    }
-  }
 
-  // Fallback (shouldn't normally happen)
-  return (
-    <div className="p-8 text-center text-muted-foreground text-sm">
-      Tampilan untuk tahap ini belum tersedia.
-    </div>
-  );
+    return (
+      <div className="pb-8">
+        {viewContent}
+        {isAdmin && currentInvoice.status !== "penawaran" && (
+          <div className="max-w-3xl mx-auto px-4 md:px-6">
+            <PdfHistory invoice={currentInvoice} />
+          </div>
+        )}
+      </div>
+    );
 }
 
 InvoiceDetailPage.getLayout = function getLayout(page: ReactElement) {

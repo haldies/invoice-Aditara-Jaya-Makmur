@@ -1,8 +1,8 @@
 {
-  "name": "lokerhub",
+  "name": "invoice-manager",
   "version": "1.0.0",
   "private": true,
-  "description": "LokerHub invoice manager, CV builder, and authenticated MCP app.",
+  "description": "Invoice manager and authenticated MCP app.",
   "packageManager": "npm@10.9.2",
   "overrides": {
     "postcss": "$postcss"
@@ -64,6 +64,8 @@
     "docx": "^9.5.1",
     "embla-carousel-react": "^8.6.0",
     "file-saver": "^2.0.5",
+    "geografis": "^1.3.2",
+    "idn-area-data": "^4.0.1",
     "liquid-glass-react": "^1.1.1",
     "lucide-react": "^0.562.0",
     "next": "^16.2.7",

@@ -3,9 +3,9 @@ export type AppRole = "owner" | "admin" | "manager" | "user" | "sales";
 export interface AppUser {
   id: string;
   email: string | null;
+  name: string | null;
   phone: string | null;
   role: AppRole;
-  commission_rate: number;
   created_at: string;
 }
 
@@ -37,6 +37,10 @@ export interface Client {
   phone: string | null;
   company: string | null;
   address: string | null;
+  province: string | null;
+  city: string | null;
+  district: string | null;
+  postal_code: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -51,7 +55,6 @@ export interface InvoiceItem {
   unit_price: number;
   ajm_price?: number;         // Harga net perusahaan (AJM) untuk hitung komisi/fee (diisi admin)
   buy_in_price: number;       // HPP / harga beli ke supplier (diisi admin)
-  commission_rate: number;    // Komisi per m3 khusus untuk invoice ini
   line_total: number;
   sort_order: number;
 }
@@ -69,8 +72,10 @@ export interface Invoice {
   subtotal: number;
   discount: number;
   tax: number;
+  shipping_fee: number;
   fee: number;   // Fee/biaya tambahan (dikurangi dari margin, bukan dari total customer)
   total: number;
+  amount_paid: number;
   notes: string | null;
   terms: string | null;
   template_id: string | null;
@@ -87,7 +92,7 @@ export interface Invoice {
 
 export type InvoiceItemInput = Pick<
   InvoiceItem,
-  "description" | "quantity" | "unit_price" | "buy_in_price" | "ajm_price" | "commission_rate"
+  "description" | "quantity" | "unit_price" | "buy_in_price" | "ajm_price"
 > & {
   id?: string;
   sort_order?: number;
@@ -102,6 +107,10 @@ export interface InvoiceInput {
     phone?: string | null;
     company?: string | null;
     address?: string | null;
+    province?: string | null;
+    city?: string | null;
+    district?: string | null;
+    postal_code?: string | null;
     notes?: string | null;
   };
   invoice_number: string;
@@ -110,9 +119,11 @@ export interface InvoiceInput {
   issue_date: string;
   due_date?: string | null;
   paid_date?: string | null;
-  discount?: number;
-  tax?: number;
-  fee?: number;   // Fee/biaya tambahan, dikurangi dari margin
+  discount?: number | null;
+  tax?: number | null;
+  shipping_fee?: number | null;
+  fee?: number | null;   // Fee/biaya tambahan, dikurangi dari margin
+  amount_paid?: number | null;
   notes?: string | null;
   terms?: string | null;
   template_id?: string | null;
@@ -121,6 +132,7 @@ export interface InvoiceInput {
 
 export interface InvoiceFilters {
   status?: InvoiceStatus | "all";
+  payment_status?: "all" | "lunas" | "belum_lunas";
   search?: string;
   client_id?: string;
   sales?: string;
@@ -142,12 +154,12 @@ export const INVOICE_STATUS_CONFIG: Record<
   InvoiceStatus,
   { label: string; color: string; bgColor: string }
 > = {
-  penawaran: { label: "Penawaran", color: "text-slate-700", bgColor: "bg-slate-100" },
+  penawaran: { label: "Menunggu PO", color: "text-slate-700", bgColor: "bg-slate-100" },
+  po: { label: "Diproses", color: "text-indigo-700", bgColor: "bg-indigo-100" },
+  pengiriman: { label: "Dikirim", color: "text-blue-700", bgColor: "bg-blue-100" },
   tagihan: { label: "Tagihan", color: "text-amber-700", bgColor: "bg-amber-100" },
-  po: { label: "Purchase Order", color: "text-indigo-700", bgColor: "bg-indigo-100" },
-  pengiriman: { label: "Pengiriman", color: "text-blue-700", bgColor: "bg-blue-100" },
   selesai: { label: "Selesai", color: "text-emerald-700", bgColor: "bg-emerald-100" },
-  batal: { label: "Batal", color: "text-red-700", bgColor: "bg-red-100" },
+  batal: { label: "Dibatalkan", color: "text-red-700", bgColor: "bg-red-100" },
 };
 
 export const INVOICE_STATUSES = Object.keys(
@@ -160,6 +172,7 @@ export interface InvoicePresetItem {
   name: string;
   description: string;
   unit_price: number;    // Harga jual ke customer (deal price)
+  ajm_price?: number;    // Harga AJM
   buy_in_price: number;  // HPP / harga beli ke supplier (diisi admin)
   tax_rate: number;
   created_at: string;
@@ -168,6 +181,6 @@ export interface InvoicePresetItem {
 
 export type InvoicePresetItemInput = Pick<
   InvoicePresetItem,
-  "name" | "description" | "unit_price" | "buy_in_price" | "tax_rate"
+  "name" | "description" | "unit_price" | "ajm_price" | "buy_in_price" | "tax_rate"
 >;
 

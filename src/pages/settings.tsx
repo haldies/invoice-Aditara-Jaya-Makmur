@@ -11,6 +11,7 @@ import { APP_NAME } from "@/lib/appMetadata";
 import { useAuth } from "@/hooks/useAuth";
 import { LogOut, Edit, Plus, Percent } from "lucide-react";
 import { CompanyProfileSection } from "@/components/settings/CompanyProfileSection";
+import { ShippingRatesSection } from "@/components/settings/ShippingRatesSection";
 import { useUsers } from "@/hooks/useUsers";
 import { usePresetItems } from "@/hooks/usePresetItems";
 import { AppRole, AppUser, InvoicePresetItem } from "@/types/invoice";
@@ -31,83 +32,16 @@ function RoleBadge({ role }: { role: AppRole }) {
   return <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">Sales</span>;
 }
 
-function UserRow({
-  user,
-  currentUser,
-  isEditable,
-  onRoleChange,
-  onCommissionChange,
-}: {
-  user: AppUser;
-  currentUser: any;
-  isEditable: boolean;
-  onRoleChange: (u: AppUser, role: string) => void;
-  onCommissionChange: (u: AppUser, rate: number) => Promise<void>;
-}) {
-  const [rate, setRate] = useState(user.commission_rate?.toString() || "5000");
-  const [saving, setSaving] = useState(false);
-
-  const handleSaveRate = async () => {
-    const num = parseInt(rate, 10);
-    if (isNaN(num)) return;
-    setSaving(true);
-    await onCommissionChange(user, num);
-    setSaving(false);
-  };
-
-  return (
-    <tr className="border-b transition-colors hover:bg-muted/30">
-      <td className="p-4 align-middle font-medium">{user.email}</td>
-      <td className="p-4 align-middle"><RoleBadge role={user.role} /></td>
-      <td className="p-4 align-middle">
-        <div className="flex items-center gap-2">
-          <Input 
-            type="number" 
-            className="w-24 h-8 text-xs" 
-            value={rate}
-            onChange={(e) => setRate(e.target.value)}
-            disabled={!isEditable || saving}
-          />
-          {isEditable && rate !== (user.commission_rate?.toString() || "5000") && (
-            <Button size="sm" variant="default" className="h-8 text-xs" onClick={handleSaveRate} disabled={saving}>
-              Simpan
-            </Button>
-          )}
-        </div>
-      </td>
-      <td className="p-4 align-middle text-right">
-        {isEditable ? (
-          <div className="flex justify-end">
-            <Select
-              defaultValue={user.role === "manager" ? "admin" : user.role}
-              onValueChange={(val) => onRoleChange(user, val)}
-            >
-              <SelectTrigger className="w-[120px] h-9 text-xs transition-colors hover:bg-muted/50">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {currentUser?.role === "owner" && <SelectItem value="owner">Owner</SelectItem>}
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="user">Sales</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        ) : (
-          <span className="text-muted-foreground text-xs italic px-2 py-1 bg-muted/50 rounded-md">Terkunci</span>
-        )}
-      </td>
-    </tr>
-  );
-}
+// Removed UserRow as Users tab is removed
 
 function SettingsPage() {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const { toast } = useToast();
-  const { users, isLoading: loadingUsers, updateUserRole, updateUserCommissionRate } = useUsers();
+  const { users, isLoading: loadingUsers, updateUser } = useUsers();
 
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"profile" | "company" | "roles">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "company" | "shipping">("profile");
 
   useEffect(() => {
     async function loadSettings() {
@@ -125,33 +59,17 @@ function SettingsPage() {
     loadSettings();
   }, []);
 
-  const handleRoleChange = async (targetUser: AppUser, newRole: string) => {
+  const handleUpdateUser = async (id: string, data: Partial<AppUser>) => {
     try {
-      await updateUserRole(targetUser.id, newRole as AppRole);
+      if (!updateUser) throw new Error("Fitur belum siap");
+      await updateUser(id, data);
       toast({
         title: "Berhasil",
-        description: `Peran ${targetUser.email} telah diubah menjadi ${newRole}.`,
+        description: "Data pengguna berhasil diperbarui.",
       });
     } catch (err: any) {
       toast({
-        title: "Gagal mengubah peran",
-        description: err.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleCommissionChange = async (targetUser: AppUser, rate: number) => {
-    try {
-      if (!updateUserCommissionRate) throw new Error("Fitur belum siap");
-      await updateUserCommissionRate(targetUser.id, rate);
-      toast({
-        title: "Berhasil",
-        description: `Komisi dasar ${targetUser.email} diubah menjadi Rp ${rate.toLocaleString("id-ID")}/m³`,
-      });
-    } catch (err: any) {
-      toast({
-        title: "Gagal mengubah komisi",
+        title: "Gagal memperbarui pengguna",
         description: err.message,
         variant: "destructive",
       });
@@ -208,14 +126,14 @@ function SettingsPage() {
           {canManageRoles && (
             <button
               type="button"
-              onClick={() => setActiveTab("roles")}
+              onClick={() => setActiveTab("shipping")}
               className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-all ${
-                activeTab === "roles"
+                activeTab === "shipping"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
-              Manajemen Sales
+              Pengaturan Ongkir
             </button>
           )}
         </div>
@@ -251,42 +169,10 @@ function SettingsPage() {
             <CompanyProfileSection />
           )}
 
-          {activeTab === "roles" && canManageRoles && (
-            <section className="space-y-4 rounded-xl bg-card border p-4 sm:p-6 shadow-sm">
-                  <div className="text-lg font-semibold text-foreground">
-                    Manajemen Pengguna & Sales
-                  </div>
-                  <div className="relative w-full overflow-auto rounded-lg">
-                    {loadingUsers ? (
-                      <div className="p-6 text-center text-sm text-muted-foreground">Memuat pengguna...</div>
-                    ) : users.length === 0 ? (
-                      <div className="p-6 text-center text-sm text-muted-foreground">Tidak ada pengguna lain.</div>
-                    ) : (
-                      <table className="w-full caption-bottom text-sm">
-                        <thead className="bg-muted/50">
-                          <tr className="border-b transition-colors">
-                            <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Email</th>
-                            <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Role</th>
-                            <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Default Komisi/m³</th>
-                            <th className="h-10 px-4 text-right align-middle font-medium text-muted-foreground">Akses</th>
-                          </tr>
-                        </thead>
-                        <tbody className="[&_tr:last-child]:border-0">
-                          {users.map((u) => (
-                            <UserRow 
-                              key={u.id}
-                              user={u}
-                              currentUser={user}
-                              isEditable={isEditable(u)}
-                              onRoleChange={handleRoleChange}
-                              onCommissionChange={handleCommissionChange}
-                            />
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                </section>
+
+
+          {activeTab === "shipping" && canManageRoles && (
+            <ShippingRatesSection />
           )}
         </div>
       </div>

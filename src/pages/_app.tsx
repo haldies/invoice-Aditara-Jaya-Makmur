@@ -26,22 +26,13 @@ export default function App({ Component, pageProps }: AppPropsWithLayout) {
   // Use the layout defined at the page level, if available
   const getLayout = Component.getLayout ?? ((page) => page);
 
-  // Remove workers and caches left by older PWA builds.
+  // Register service worker for PWA
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      void navigator.serviceWorker.getRegistrations().then((registrations) =>
-        Promise.all(registrations.map((registration) => registration.unregister()))
-      );
-    }
-
-    if ("caches" in window) {
-      void caches.keys().then((keys) =>
-        Promise.all(
-          keys
-            .filter((key) => key.startsWith("lokerhub-"))
-            .map((key) => caches.delete(key))
-        )
-      );
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((reg) => console.log("Service Worker registered successfully:", reg.scope))
+        .catch((err) => console.error("Service Worker registration failed:", err));
     }
   }, []);
 

@@ -75,7 +75,7 @@
   }
 
   :root {
-    --background: 220 20% 98.5%;      /* Premium light gray canvas */
+    --background: 0 0% 100%;      /* Pure white canvas */
     --foreground: 220 40% 12%;        /* Deep Charcoal */
     --card: 0 0% 100%;                /* Pure white cards */
     --card-foreground: 220 40% 12%;

@@ -13,7 +13,7 @@ import {
 const invoiceInclude = {
   client: true,
   items: { orderBy: { sort_order: "asc" as const } },
-  user: { select: { email: true, phone: true } },
+  user: { select: { email: true, name: true, phone: true } },
 };
 
 type InvoiceRow = Prisma.InvoiceGetPayload<{ include: typeof invoiceInclude }>;
@@ -45,6 +45,10 @@ function rowToClient(row: ClientRow): Client {
     phone: row.phone ?? null,
     company: row.company ?? null,
     address: row.address ?? null,
+    province: row.province ?? null,
+    city: row.city ?? null,
+    district: row.district ?? null,
+    postal_code: row.postal_code ?? null,
     notes: row.notes ?? null,
   };
 }
@@ -75,6 +79,7 @@ function normalizeMoney(value: number | null | undefined) {
 function calculateTotals(input: Pick<InvoiceInput, "items"> & {
   discount?: number | null;
   tax?: number | null;
+  shipping_fee?: number | null;
   fee?: number | null;
 }) {
   const items = input.items.map((item, index) => {
@@ -92,7 +97,6 @@ function calculateTotals(input: Pick<InvoiceInput, "items"> & {
       unit_price: unitPrice,
       ajm_price: item.ajm_price,
       buy_in_price: buyInPrice,
-      commission_rate: item.commission_rate ?? 5000,
       line_total: billedQty * unitPrice,
       sort_order: item.sort_order ?? index,
     };
@@ -101,14 +105,16 @@ function calculateTotals(input: Pick<InvoiceInput, "items"> & {
   const discount = normalizeMoney(input.discount);
   const tax = normalizeMoney(input.tax);
   const fee = normalizeMoney(input.fee);
+  const shipping_fee = normalizeMoney(input.shipping_fee);
   return {
     items,
     subtotal,
     discount,
     tax,
+    shipping_fee,
     fee,
-    // total = tagihan ke customer (tidak termasuk fee — fee hanya pengaruhi margin internal)
-    total: Math.max(0, subtotal - discount + tax),
+    // total = tagihan ke customer (ditambah ongkir, tidak termasuk fee internal)
+    total: Math.max(0, subtotal - discount + tax + shipping_fee),
   };
 }
 
@@ -135,6 +141,10 @@ async function resolveClient(actor: Actor, data: InvoiceInput) {
       phone: data.client.phone || null,
       company: data.client.company || null,
       address: data.client.address || null,
+      province: data.client.province || null,
+      city: data.client.city || null,
+      district: data.client.district || null,
+      postal_code: data.client.postal_code || null,
       notes: data.client.notes || null,
       created_at: now,
       updated_at: now,
@@ -150,8 +160,24 @@ export async function listInvoices(
   const where: Prisma.InvoiceWhereInput = ownershipWhere(actor);
   
   if (filters.status && filters.status !== "all") {
-    where.status = filters.status;
+    if (typeof filters.status === "string" && filters.status.includes(",")) {
+      where.status = { in: filters.status.split(",") as any[] };
+    } else {
+      where.status = filters.status;
+    }
   }
+  
+  if (filters.payment_status && filters.payment_status !== "all") {
+    // Determine payment status using a raw query
+    if (filters.payment_status === "lunas") {
+      const idsResult = await prisma.$queryRaw<{id: string}[]>`SELECT id::text FROM invoices WHERE total > 0 AND (total - amount_paid) <= 0`;
+      where.id = { in: idsResult.map(r => r.id) };
+    } else if (filters.payment_status === "belum_lunas") {
+      const idsResult = await prisma.$queryRaw<{id: string}[]>`SELECT id::text FROM invoices WHERE (total - amount_paid) > 0`;
+      where.id = { in: idsResult.map(r => r.id) };
+    }
+  }
+
   if (filters.client_id) {
     where.client_id = filters.client_id;
   }
@@ -257,9 +283,11 @@ export async function createInvoice(
       paid_date: data.paid_date || null,
       discount: totals.discount,
       tax: totals.tax,
+      shipping_fee: totals.shipping_fee,
       fee: totals.fee,
       subtotal: totals.subtotal,
       total: totals.total,
+      amount_paid: normalizeMoney(data.amount_paid),
       notes: data.notes || null,
       terms: data.terms || null,
       template_id: data.template_id || null,
@@ -317,10 +345,11 @@ export async function updateInvoice(
       ...(updates.template_id !== undefined
         ? { template_id: updates.template_id }
         : {}),
-      discount: totals.discount,
-      tax: totals.tax,
-      fee: totals.fee,
-      subtotal: totals.subtotal,
+      discount: totals ? totals.discount : undefined,
+      tax: totals ? totals.tax : undefined,
+      shipping_fee: totals ? totals.shipping_fee : undefined,
+      fee: totals ? totals.fee : undefined,
+      subtotal: totals ? totals.subtotal : undefined,
       total: totals.total,
       updated_at: new Date().toISOString(),
       version: { increment: 1 },

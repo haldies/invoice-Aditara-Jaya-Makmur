@@ -5,16 +5,27 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RevenueChart } from "./RevenueChart";
 import { useInvoices } from "@/hooks/useInvoices";
+import { useAuth } from "@/hooks/useAuth";
 import { INVOICE_STATUS_CONFIG, INVOICE_STATUSES } from "@/types/invoice";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ExternalLink } from "lucide-react";
 
 const MARGIN_PER_PAGE = 10;
 
 export function InvoiceDashboard() {
+  const { user } = useAuth();
   const { invoices, isLoading, isValidating } = useInvoices();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"invoices" | "finance" | "sales">("invoices");
+  const [activeTab, setActiveTab] = useState<"invoices" | "finance" | "sales" | "customers">("invoices");
   const [timeFilter, setTimeFilter] = useState<"all" | "year" | "month">("all");
   const [marginPage, setMarginPage] = useState(1);
+
+  const isAdmin = user && (user.role === "admin" || user.role === "manager" || user.role === "owner");
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -46,9 +57,19 @@ export function InvoiceDashboard() {
 
     const bySales: Record<
       string,
-      { email: string; totalRevenue: number; totalVolume: number; invoiceCount: number; totalCommission: number; products: Record<string, { volume: number; revenue: number }> }
+      { email: string; name: string; phone: string | null; totalRevenue: number; totalVolume: number; invoiceCount: number; totalCommission: number; products: Record<string, { volume: number; revenue: number }> }
     > = {};
     const byProductSisa: Record<string, number> = {};
+    const sisaDetails: Array<{
+      invoiceId: string;
+      invoiceNumber: string;
+      clientName: string;
+      productName: string;
+      poQty: number;
+      actualQty: number;
+      sisaQty: number;
+      date: string;
+    }> = [];
     const chartDataMap: Record<string, { label: string; revenue: number; profit: number; order: number }> = {};
 
     // Helper for month names
@@ -76,9 +97,10 @@ export function InvoiceDashboard() {
 
     for (const invoice of filteredInvoices) {
       byStatus[invoice.status] = (byStatus[invoice.status] || 0) + 1;
-      if (invoice.status === "selesai") paid += invoice.total;
-      if (invoice.status !== "selesai" && invoice.status !== "batal") {
-        outstanding += invoice.total;
+      if (invoice.status !== "batal") {
+        const paidAmount = Number(invoice.amount_paid || 0);
+        paid += paidAmount;
+        outstanding += Math.max(0, invoice.total - paidAmount);
       }
 
       if (invoice.status !== "batal") {
@@ -97,6 +119,16 @@ export function InvoiceDashboard() {
           if (sisa !== 0) {
             const productName = (item.description || "Unknown").split("-")[0].trim();
             byProductSisa[productName] = (byProductSisa[productName] || 0) + sisa;
+            sisaDetails.push({
+              invoiceId: invoice.id,
+              invoiceNumber: invoice.invoice_number,
+              clientName: invoice.client?.name || "Unknown",
+              productName: item.description || "Unknown",
+              poQty,
+              actualQty: qty,
+              sisaQty: sisa,
+              date: invoice.issue_date || "",
+            });
           }
 
           const dealPrice = Number(item.unit_price || 0);
@@ -110,8 +142,10 @@ export function InvoiceDashboard() {
         }
         // Sales Metrics
         const email = (invoice as any).user?.email || "Unknown";
+        const name = (invoice as any).user?.name || "Unknown";
+        const phone = (invoice as any).user?.phone || null;
         if (!bySales[email]) {
-          bySales[email] = { email, totalRevenue: 0, totalVolume: 0, invoiceCount: 0, totalCommission: 0, products: {} };
+          bySales[email] = { email, name, phone, totalRevenue: 0, totalVolume: 0, invoiceCount: 0, totalCommission: 0, products: {} };
         }
         bySales[email].invoiceCount += 1;
         
@@ -120,10 +154,14 @@ export function InvoiceDashboard() {
         let invComm = 0;
         for (const item of invoice.items || []) {
           const qty = item.actual_quantity != null ? Number(item.actual_quantity) : Number(item.quantity || 0);
-          const rev = qty * Number(item.unit_price || 0);
+          const dealPrice = Number(item.unit_price || 0);
+          const rev = qty * dealPrice;
+          
+          const ajmPrice = item.ajm_price != null ? Number(item.ajm_price) : dealPrice;
+          
           invVol += qty;
           invRev += rev;
-          invComm += qty * Number((item as any).commission_rate ?? 5000);
+          invComm += qty * Math.max(0, dealPrice - ajmPrice);
 
           const productName = (item.description || "Unknown").split("-")[0].trim();
           if (!bySales[email].products[productName]) {
@@ -194,31 +232,83 @@ export function InvoiceDashboard() {
 
     const totalPpnSupplier = Math.round(totalHppDibayar * 0.11);
     const totalBuyIn       = totalHppDibayar + totalPpnSupplier;
-    const totalGlobalFee   = invoices
+    const totalGlobalFee   = 0;
+    const grossProfit      = totalAjm - totalHpp;
+    const avgMarginPerM3   = totalVolume > 0 ? grossProfit / totalVolume : 0;
+    
+    // Ongkir menambah laba bersih
+    const totalShipping = invoices
       .filter((inv) => inv.status !== "batal")
-      .reduce((sum, inv) => sum + Number((inv as any).fee || 0), 0);
-    const grossProfit    = totalAjm - totalHpp - totalGlobalFee;
-    const avgMarginPerM3 = totalVolume > 0 ? grossProfit / totalVolume : 0;
+      .reduce((sum, inv) => sum + Number(inv.shipping_fee || 0), 0);
+    const netProfitGlobal = grossProfit + totalShipping;
 
     // Top Buyers / Loyal Customers
     const byClient: Record<
       string,
-      { id: string; name: string; company: string; invoiceCount: number; totalDeal: number; totalVolume: number; lastOrderDate: string }
+      { id: string; name: string; company: string; invoiceCount: number; totalDeal: number; totalVolume: number; lastOrderDate: string; totalOutstanding: number }
     > = {};
+    const byProduct: Record<string, { name: string; count: number; volume: number; revenue: number; hpp: number }> = {};
+    const byDestination: Record<string, { city: string; count: number; volume: number; revenue: number; hpp: number }> = {};
+
     for (const inv of filteredInvoices.filter((i) => i.status !== "batal")) {
       const cid   = inv.client_id;
       const name  = inv.client?.name || "—";
       const co    = inv.client?.company || "";
-      if (!byClient[cid]) byClient[cid] = { id: cid, name, company: co, invoiceCount: 0, totalDeal: 0, totalVolume: 0, lastOrderDate: "" };
+      if (!byClient[cid]) byClient[cid] = { id: cid, name, company: co, invoiceCount: 0, totalDeal: 0, totalVolume: 0, lastOrderDate: "", totalOutstanding: 0 };
+      
+      const paidAmt = Number(inv.amount_paid || 0);
+      byClient[cid].totalOutstanding += Math.max(0, inv.total - paidAmt);
+      
       byClient[cid].invoiceCount += 1;
-      byClient[cid].totalDeal    += inv.items.reduce((s, it) => {
+      
+      let city = "Tidak Diketahui";
+      const plantMatch = inv.notes?.match(/Plant:\s*([^\n,]+)/i);
+      if (plantMatch) {
+        city = plantMatch[1].trim();
+      } else {
+        let c = inv.client?.city;
+        if (!c && inv.client?.address) {
+          const address = inv.client.address;
+          const match = address.match(/(?:Kab\.|Kota|Kabupaten)\s+[A-Za-z\s]+/i);
+          if (match) {
+            c = match[0].trim();
+          } else {
+            const parts = address.split(',').map(s => s.trim());
+            if (parts.length >= 3) {
+              c = parts[parts.length - 2];
+            } else {
+              c = parts[parts.length - 1];
+            }
+            c = c.replace(/\b\d{5}\b/g, '').trim();
+          }
+        }
+        city = c || "Tidak Diketahui";
+      }
+      
+      if (!byDestination[city]) byDestination[city] = { city, count: 0, volume: 0, revenue: 0, hpp: 0 };
+      byDestination[city].count += 1;
+
+      inv.items.forEach(it => {
         const q = it.actual_quantity != null ? Number(it.actual_quantity) : Number(it.quantity || 0);
-        return s + q * Number(it.unit_price || 0);
-      }, 0);
-      byClient[cid].totalVolume  += inv.items.reduce((s, it) => {
-        const q = it.actual_quantity != null ? Number(it.actual_quantity) : Number(it.quantity || 0);
-        return s + q;
-      }, 0);
+        const deal = q * Number(it.unit_price || 0);
+        const ajm  = it.ajm_price != null ? q * Number(it.ajm_price) : deal;
+        const hpp  = q * Number(it.buy_in_price || 0);
+        
+        byClient[cid].totalDeal += deal;
+        byClient[cid].totalVolume += q;
+        
+        byDestination[city].volume += q;
+        byDestination[city].revenue += deal;
+        byDestination[city].hpp += hpp;
+
+        const prodName = it.description || "Produk Lainnya";
+        if (!byProduct[prodName]) byProduct[prodName] = { name: prodName, count: 0, volume: 0, revenue: 0, hpp: 0 };
+        byProduct[prodName].count += 1;
+        byProduct[prodName].volume += q;
+        byProduct[prodName].revenue += deal;
+        byProduct[prodName].hpp += hpp;
+      });
+
       if (!byClient[cid].lastOrderDate || inv.issue_date > byClient[cid].lastOrderDate) {
         byClient[cid].lastOrderDate = inv.issue_date || "";
       }
@@ -226,6 +316,93 @@ export function InvoiceDashboard() {
     const topBuyers = Object.values(byClient)
       .sort((a, b) => b.totalDeal - a.totalDeal)
       .slice(0, 10);
+
+    const topUnpaidBuyers = Object.values(byClient)
+      .filter((c) => c.totalOutstanding > 0)
+      .sort((a, b) => b.totalOutstanding - a.totalOutstanding)
+      .slice(0, 10);
+
+    const topProducts = Object.values(byProduct)
+      .sort((a, b) => b.volume - a.volume)
+      .slice(0, 10);
+
+    const topDestinations = Object.values(byDestination)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+
+    const allCustomers = Object.values(byClient).map((c) => {
+      let segment = "Reguler";
+      let action = "Pertahankan hubungan baik";
+      let riskLevel = "low";
+      const unpaidRatio = c.totalDeal > 0 ? c.totalOutstanding / c.totalDeal : 0;
+      
+      const lastOrder = c.lastOrderDate ? new Date(c.lastOrderDate) : null;
+      const daysSinceLastOrder = lastOrder ? (now.getTime() - lastOrder.getTime()) / (1000 * 3600 * 24) : 0;
+
+      if (c.totalOutstanding > 25_000_000 || unpaidRatio > 0.5) {
+        segment = "Beresiko";
+        action = "Tahan order baru, segera follow-up tagihan";
+        riskLevel = "high";
+      } else if (daysSinceLastOrder > 90) {
+        segment = "Sleeping";
+        action = "Follow-up kembali, tawarkan promo khusus";
+        riskLevel = "medium";
+      } else if (c.totalDeal >= 50_000_000 && unpaidRatio < 0.2) {
+        segment = "Loyal / VIP";
+        action = "Prioritaskan pelayanan, prospek bagus";
+        riskLevel = "low";
+      }
+
+      return {
+        ...c,
+        segment,
+        action,
+        riskLevel,
+        daysSinceLastOrder,
+        unpaidRatio
+      };
+    }).sort((a, b) => b.totalDeal - a.totalDeal);
+
+    // Generate Business Insights (Scale-Up Advisor)
+    const businessInsights: Array<{ type: "success" | "warning" | "danger" | "info"; title: string; desc: string }> = [];
+    
+    // Insight 1: Product Margin
+    let bestProduct = { name: "", marginPerM3: 0, revenue: 0, hpp: 0 };
+    for (const p of Object.values(byProduct)) {
+       const margin = p.revenue - p.hpp;
+       const marginPerM3 = p.volume > 0 ? margin / p.volume : 0;
+       if (marginPerM3 > bestProduct.marginPerM3 && p.volume > 10) {
+         bestProduct = { name: p.name, marginPerM3, revenue: p.revenue, hpp: p.hpp };
+       }
+    }
+    if (bestProduct.name) {
+       businessInsights.push({
+         type: "success",
+         title: "Top Margin Produk",
+         desc: `Produk: ${bestProduct.name}\nMargin / m³: Rp ${Math.round(bestProduct.marginPerM3).toLocaleString("id-ID")}`
+       });
+    }
+
+    // Insight 2: Cashflow Risk
+    if (outstanding > 0) {
+      const topOustandingName = topUnpaidBuyers.length > 0 ? topUnpaidBuyers[0].name : "-";
+      const topOutstandingAmt = topUnpaidBuyers.length > 0 ? topUnpaidBuyers[0].totalOutstanding : 0;
+      businessInsights.push({
+        type: "danger",
+        title: "Resiko Cashflow (Piutang)",
+        desc: `Total Piutang Berjalan: Rp ${outstanding.toLocaleString("id-ID")}\nPenunggak Terbesar: ${topOustandingName} (Rp ${topOutstandingAmt.toLocaleString("id-ID")})`
+      });
+    }
+
+    // Insight 3: Sleeping Customers / Retention
+    const sleepingCount = allCustomers.filter(c => c.segment === "Sleeping").length;
+    if (sleepingCount > 0) {
+       businessInsights.push({
+         type: "info",
+         title: "Pelanggan Non-Aktif (Sleeping)",
+         desc: `Jumlah Pelanggan (> 90 Hari): ${sleepingCount} Pelanggan\nStatus: Perlu Follow-up`
+       });
+    }
 
     return {
       byStatus,
@@ -238,25 +415,70 @@ export function InvoiceDashboard() {
       totalHppDibayar,
       totalPpnSupplier,
       totalBuyIn,
-      totalFee: totalGlobalFee + totalEksternalFee,
+      totalFee: totalEksternalFee,
       grossProfit,
+      netProfitGlobal,
       avgMarginPerM3,
       totalPOVolume,
       totalSisaPO,
       salesStats: Object.values(bySales).sort((a, b) => b.totalRevenue - a.totalRevenue),
       sisaStats: Object.entries(byProductSisa).filter(([_, val]) => val !== 0).sort((a, b) => b[1] - a[1]),
-      chartData,
+      sisaDetails: sisaDetails.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
       topBuyers,
+      topUnpaidBuyers,
+      topProducts,
+      topDestinations,
+      allCustomers,
+      businessInsights,
+      chartData
     };
   }, [invoices, timeFilter]);
 
   if (isLoading) {
     return (
-      <div className="space-y-4 p-4 md:p-5">
-        <div className="h-10 w-48 animate-pulse rounded-lg bg-muted" />
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+      <div className="space-y-4 p-4 md:p-5 w-full">
+        {/* Tabs & Filter Skeleton */}
+        <div className="flex flex-col sm:flex-row justify-between border-b gap-3 pb-2 sm:pb-0">
+          <div className="flex gap-4">
+            <div className="h-8 w-24 animate-pulse rounded-t-md bg-muted/70" />
+            <div className="h-8 w-24 animate-pulse rounded-t-md bg-muted/40" />
+            <div className="h-8 w-24 animate-pulse rounded-t-md bg-muted/40" />
+            <div className="h-8 w-24 animate-pulse rounded-t-md bg-muted/40" />
+          </div>
+          <div className="h-9 w-32 animate-pulse rounded-md bg-muted/60 mb-2 sm:mb-1" />
+        </div>
+
+        {/* Metrics Grid Skeleton */}
+        <div className="grid grid-cols-2 md:grid-cols-4 overflow-hidden rounded-lg border bg-card">
           {[1, 2, 3, 4].map((item) => (
-            <div key={item} className="h-20 animate-pulse rounded-lg bg-muted" />
+            <div key={item} className="p-4 border-l first:border-l-0">
+              <div className="h-3 w-20 animate-pulse rounded bg-muted mb-3" />
+              <div className="h-6 w-28 animate-pulse rounded bg-muted/80" />
+              <div className="h-2 w-16 animate-pulse rounded bg-muted mt-2" />
+            </div>
+          ))}
+        </div>
+
+        {/* Content Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+          {[1, 2].map((card) => (
+            <div key={card} className="rounded-lg border bg-card p-4 space-y-5 h-[320px]">
+              <div className="h-4 w-1/3 animate-pulse rounded bg-muted/80" />
+              <div className="space-y-3 mt-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex justify-between border-b pb-3">
+                    <div className="flex gap-3 items-center w-2/3">
+                      <div className="h-6 w-6 rounded-full animate-pulse bg-muted shrink-0" />
+                      <div className="space-y-1.5 w-full">
+                        <div className="h-3 w-full animate-pulse rounded bg-muted" />
+                        <div className="h-2 w-2/3 animate-pulse rounded bg-muted/60" />
+                      </div>
+                    </div>
+                    <div className="h-4 w-1/4 animate-pulse rounded bg-muted/80" />
+                  </div>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>
@@ -286,26 +508,40 @@ export function InvoiceDashboard() {
           >
             Ringkasan
           </button>
-          <button
-            onClick={() => setActiveTab("finance")}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
-              activeTab === "finance"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Laba Rugi
-          </button>
-          <button
-            onClick={() => setActiveTab("sales")}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
-              activeTab === "sales"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Sales
-          </button>
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => setActiveTab("finance")}
+                className={`px-4 py-2 text-sm font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+                  activeTab === "finance"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Laba Rugi
+              </button>
+              <button
+                onClick={() => setActiveTab("sales")}
+                className={`px-4 py-2 text-sm font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+                  activeTab === "sales"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Sales
+              </button>
+              <button
+                onClick={() => setActiveTab("customers")}
+                className={`px-4 py-2 text-sm font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+                  activeTab === "customers"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Customer
+              </button>
+            </>
+          )}
         </div>
         <div className="py-1 pr-2 self-start sm:self-auto">
           <Select value={timeFilter} onValueChange={(val: any) => setTimeFilter(val)}>
@@ -313,7 +549,7 @@ export function InvoiceDashboard() {
               <SelectValue placeholder="Filter Waktu" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua Waktu</SelectItem>
+              <SelectItem value="all">Semua</SelectItem>
               <SelectItem value="year">Tahun Ini</SelectItem>
               <SelectItem value="month">Bulan Ini</SelectItem>
             </SelectContent>
@@ -323,14 +559,15 @@ export function InvoiceDashboard() {
 
       {activeTab === "invoices" ? (
         <>
+
           {/* Metrics Panel */}
           <section className="grid grid-cols-2 overflow-hidden rounded-lg border bg-card md:grid-cols-4">
             <div className="p-4">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase">Total Invoice</p>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase">Total Transaksi</p>
               <p className="mt-1 truncate text-xl font-bold text-foreground">{invoices.length}</p>
             </div>
             <div className="p-4 border-l">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase">Piutang</p>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase">Belum di bayar</p>
               <p className="mt-1 truncate text-xl font-bold text-foreground">
                 Rp {stats.outstanding.toLocaleString("id-ID")}
               </p>
@@ -347,11 +584,21 @@ export function InvoiceDashboard() {
             </div>
           </section>
 
-          {/* Sisa Saldo per Produk Panel (Moved from Finance tab) */}
+          {/* Sisa Saldo per Produk Panel */}
           <section className="rounded-lg border bg-card p-4 space-y-3">
-            <h2 className="text-xs font-bold text-foreground uppercase tracking-wide flex items-center gap-1.5">
-              Rincian Sisa Saldo PO per Produk
-            </h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-xs font-bold text-foreground uppercase tracking-wide flex items-center gap-1.5">
+                Rincian Sisa Saldo PO per Produk
+              </h2>
+              {stats.sisaStats.length > 0 && (
+                <Link href="/tracker/sisa-po">
+                  <Button variant="outline" size="sm" className="h-8 text-[10px]">
+                    <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+                    Buka Detail Lengkap
+                  </Button>
+                </Link>
+              )}
+            </div>
             {stats.sisaStats.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                 {stats.sisaStats.map(([product, sisa]) => (
@@ -375,7 +622,7 @@ export function InvoiceDashboard() {
             <section className="rounded-lg border bg-card p-4 space-y-3">
               <h2 className="text-xs font-bold text-foreground uppercase tracking-wide">Status Breakdown</h2>
               <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-                {INVOICE_STATUSES.map((status) => (
+                {INVOICE_STATUSES.filter(s => s !== "tagihan").map((status) => (
                   <div key={status} className="flex items-center justify-between text-sm border-b pb-1.5">
                     <span className="truncate text-muted-foreground">
                       {INVOICE_STATUS_CONFIG[status].label}
@@ -389,7 +636,7 @@ export function InvoiceDashboard() {
             {/* Recent Invoices */}
             <section className="rounded-lg border bg-card p-4 space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <h2 className="text-xs font-bold text-foreground uppercase tracking-wide">Invoice Terbaru</h2>
+                <h2 className="text-xs font-bold text-foreground uppercase tracking-wide">Transaksi Terbaru</h2>
                 <Button asChild size="sm" variant="outline">
                   <Link href="/tracker/invoices/new">
                     Baru
@@ -397,7 +644,7 @@ export function InvoiceDashboard() {
                 </Button>
               </div>
               {invoices.length === 0 ? (
-                <p className="py-8 text-center text-xs text-muted-foreground">Belum ada invoice</p>
+                <p className="py-8 text-center text-xs text-muted-foreground">Belum ada transaksi</p>
               ) : (
                 <div className="divide-y text-xs">
                   {invoices.slice(0, 5).map((invoice) => (
@@ -422,67 +669,64 @@ export function InvoiceDashboard() {
             </section>
           </div>
 
-          {/* Top Buyer / Pelanggan Royal */}
-          <section className="rounded-lg border bg-card p-4 space-y-3">
-            <div>
-              <h2 className="text-xs font-bold text-foreground uppercase tracking-wide flex items-center gap-1.5">
-                Top Buyer & Pelanggan Royal
+          {/* Customer Tables Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Top Buyer */}
+            <section className="rounded-lg border bg-card p-4 space-y-3">
+              <h2 className="text-xs font-bold text-foreground uppercase tracking-wide">
+                Top Pelanggan
               </h2>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Pelanggan dengan total transaksi tertinggi berdasarkan periode yang dipilih.</p>
-            </div>
-            {stats.topBuyers.length === 0 ? (
-              <p className="text-xs text-muted-foreground italic py-3 text-center">Belum ada data pelanggan.</p>
-            ) : (
-              <div className="relative w-full overflow-auto rounded-lg border">
-                <table className="w-full caption-bottom text-xs">
-                  <thead className="bg-muted/40">
-                    <tr className="border-b uppercase">
-                      <th className="h-8 px-3 text-center font-semibold text-muted-foreground w-8">#</th>
-                      <th className="h-8 px-3 text-left font-semibold text-muted-foreground">PELANGGAN</th>
-                      <th className="h-8 px-3 text-center font-semibold text-muted-foreground">INVOICE</th>
-                      <th className="h-8 px-3 text-right font-semibold text-muted-foreground">VOLUME</th>
-                      <th className="h-8 px-3 text-right font-semibold text-muted-foreground">TOTAL DEAL</th>
-                      <th className="h-8 px-3 text-center font-semibold text-muted-foreground">ORDER TERAKHIR</th>
-                      <th className="h-8 px-3 text-center font-semibold text-muted-foreground">TIER</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {stats.topBuyers.map((buyer, idx) => {
-                      // Loyalty tier logic
-                      const deal = buyer.totalDeal;
-                      const count = buyer.invoiceCount;
-                      let tier = { label: "Bronze", color: "bg-orange-100 text-orange-700" };
-                      if (deal >= 1_000_000_000 || count >= 20) tier = { label: "Diamond", color: "bg-purple-100 text-purple-700" };
-                      else if (deal >= 500_000_000 || count >= 10) tier = { label: "Gold", color: "bg-amber-100 text-amber-700" };
-                      else if (deal >= 100_000_000 || count >= 5) tier = { label: "Silver", color: "bg-slate-100 text-slate-700" };
-                      const lastOrder = buyer.lastOrderDate
-                        ? new Date(buyer.lastOrderDate).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
-                        : "-";
-                      const rankColor = idx === 0 ? "text-amber-500" : idx === 1 ? "text-slate-500" : idx === 2 ? "text-orange-700" : "text-muted-foreground";
-                      return (
-                        <tr key={buyer.id} className="hover:bg-muted/20 transition-colors">
-                          <td className={`p-2.5 text-center font-black text-sm ${rankColor}`}>{idx + 1}</td>
-                          <td className="p-2.5 align-middle">
-                            <p className="font-semibold text-foreground">{buyer.company || buyer.name}</p>
-                            {buyer.company && <p className="text-[10px] text-muted-foreground">{buyer.name}</p>}
-                          </td>
-                          <td className="p-2.5 text-center font-semibold">{buyer.invoiceCount}</td>
-                          <td className="p-2.5 text-right font-medium">{buyer.totalVolume.toLocaleString("id-ID", { maximumFractionDigits: 2 })} m³</td>
-                          <td className="p-2.5 text-right font-bold text-slate-800">Rp {buyer.totalDeal.toLocaleString("id-ID")}</td>
-                          <td className="p-2.5 text-center text-[11px] text-muted-foreground">{lastOrder}</td>
-                          <td className="p-2.5 text-center">
-                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${tier.color}`}>
-                              {tier.label}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
+              {stats.topBuyers.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic py-3 text-center">Belum ada data pelanggan.</p>
+              ) : (
+                <div className="divide-y text-xs">
+                  {stats.topBuyers.slice(0, 5).map((buyer, idx) => (
+                    <div key={buyer.id} className="flex items-center gap-3 py-2.5 px-1 hover:bg-muted/30 rounded transition-colors">
+                      <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary font-bold text-[10px] shrink-0">
+                        {idx + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-foreground">{buyer.company || buyer.name}</p>
+                        {buyer.company && <p className="truncate text-[10px] text-muted-foreground mt-0.5">{buyer.name}</p>}
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="font-bold text-foreground">Rp {buyer.totalDeal.toLocaleString("id-ID")}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{buyer.invoiceCount} Transaksi</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Top Unpaid Buyers */}
+            <section className="rounded-lg border bg-card p-4 space-y-3">
+              <h2 className="text-xs font-bold text-red-600 uppercase tracking-wide">
+                Tagihan Belum Lunas
+              </h2>
+              {stats.topUnpaidBuyers.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic py-3 text-center">Tidak ada tagihan tertunggak.</p>
+              ) : (
+                <div className="divide-y text-xs">
+                  {stats.topUnpaidBuyers.slice(0, 5).map((buyer, idx) => (
+                    <div key={buyer.id} className="flex items-center gap-3 py-2.5 px-1 hover:bg-red-50/50 rounded transition-colors">
+                      <div className="flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-600 font-bold text-[10px] shrink-0">
+                        {idx + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-foreground">{buyer.company || buyer.name}</p>
+                        {buyer.company && <p className="truncate text-[10px] text-muted-foreground mt-0.5">{buyer.name}</p>}
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="font-bold text-red-600">Rp {buyer.totalOutstanding.toLocaleString("id-ID")}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{buyer.invoiceCount} Transaksi</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
         </>
       ) : activeTab === "finance" ? (
         <>
@@ -498,51 +742,42 @@ export function InvoiceDashboard() {
           </section>
 
           {/* Financial Margin Stats Panel */}
-          <section className="grid grid-cols-2 overflow-hidden rounded-lg border bg-card md:grid-cols-3 lg:grid-cols-5">
+          <section className="grid grid-cols-2 overflow-hidden rounded-lg border bg-card md:grid-cols-4">
             <div className="p-4">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase">
-                Total Harga Deal
+                Total Omset (Kotor)
               </div>
               <p className="mt-1 truncate text-lg font-bold text-foreground">
-                Rp {stats.totalRevenue.toLocaleString("id-ID")}
+                Rp {invoices.filter(i => i.status !== "batal").reduce((sum, inv) => sum + inv.total, 0).toLocaleString("id-ID")}
               </p>
-              <p className="text-[10px] text-muted-foreground">Tanpa PPN</p>
+              <p className="text-[10px] text-muted-foreground">Termasuk PPN</p>
             </div>
-            <div className="p-4 border-t md:border-t-0 md:border-l">
+            <div className="p-4 border-l">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase">
-                Total HPP Terpakai
-              </div>
-              <p className="mt-1 truncate text-lg font-bold text-foreground">
-                Rp {stats.totalHpp.toLocaleString("id-ID")}
-              </p>
-              <p className="text-[10px] text-muted-foreground">Tanpa PPN</p>
-            </div>
-            <div className="p-4 border-t md:border-t-0 border-l">
-              <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase">
-                Total Uang Keluar
+                Total Modal Keluar
               </div>
               <p className="mt-1 truncate text-lg font-bold text-orange-600">
                 Rp {stats.totalBuyIn.toLocaleString("id-ID")}
               </p>
-              <p className="text-[10px] text-muted-foreground">HPP + Titipan PPN</p>
+              <p className="text-[10px] text-muted-foreground">HPP + PPN</p>
             </div>
             <div className="p-4 border-t md:border-t-0 border-l">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase">
                 Laba Bersih
               </div>
-              <p className={`mt-1 truncate text-lg font-bold ${stats.grossProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                Rp {stats.grossProfit.toLocaleString("id-ID")}
+              <p className={`mt-1 truncate text-lg font-bold ${stats.netProfitGlobal >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                Rp {stats.netProfitGlobal.toLocaleString("id-ID")}
               </p>
-              <p className="text-[10px] text-muted-foreground">setelah fee</p>
+              <p className="text-[10px] text-muted-foreground">Setelah komisi & ongkir</p>
             </div>
-            <div className="p-4 border-t md:border-t-0 border-l col-span-2 md:col-span-1">
+            <div className="p-4 border-t md:border-t-0 border-l">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase">Rata-rata Margin</p>
               <p className="mt-1 truncate text-lg font-bold text-primary">
                 Rp {Math.round(stats.avgMarginPerM3).toLocaleString("id-ID")}/m³
               </p>
               {stats.totalFee > 0 && (
                 <p className="text-[10px] text-muted-foreground">
-                  Fee total: Rp {stats.totalFee.toLocaleString("id-ID")}
+                  Fee: Rp {stats.totalFee.toLocaleString("id-ID")}
                 </p>
               )}
             </div>
@@ -563,8 +798,8 @@ export function InvoiceDashboard() {
               <table className="w-full caption-bottom text-xs">
                 <thead className="bg-muted/40">
                   <tr className="border-b uppercase">
-                    <th className="h-9 px-3 text-left font-semibold text-muted-foreground">NO. INVOICE</th>
-                    <th className="h-9 px-3 text-left font-semibold text-muted-foreground">CUSTOMER</th>
+                    <th className="h-9 px-3 text-left font-semibold text-muted-foreground">NO. TRANSAKSI</th>
+                    <th className="h-9 px-3 text-left font-semibold text-muted-foreground">PELANGGAN</th>
                     <th className="h-9 px-3 text-center font-semibold text-muted-foreground">VOL</th>
                     <th className="h-9 px-3 text-right font-semibold text-muted-foreground">TOTAL DEAL</th>
                     <th className="h-9 px-3 text-right font-semibold text-emerald-700">LABA BERSIH</th>
@@ -591,8 +826,8 @@ export function InvoiceDashboard() {
                       // HPP = harga beli × vol, excl PPN supplier
                       const invHpp     = inv.items.reduce((s, it) => s + billedQty(it) * Number(it.buy_in_price || 0), 0);
                       
-                      const globalFee    = Number((inv as any).fee || 0);
-                      const invProfit    = invAjm - invHpp - globalFee; // Laba kotor perusahaan (tanpa potong PPN)
+                      const invShipping  = Number(inv.shipping_fee || 0);
+                      const invProfit    = invAjm - invHpp + invShipping;
 
                       return (
                         <tr key={inv.id} className="hover:bg-muted/20 transition-colors">
@@ -692,7 +927,7 @@ export function InvoiceDashboard() {
             })()}
           </section>
         </>
-      ) : (
+      ) : activeTab === "sales" ? (
         <>
           <section className="rounded-lg border bg-card p-4 space-y-3">
             <div>
@@ -720,7 +955,11 @@ export function InvoiceDashboard() {
                       className="hover:bg-muted/30 transition-colors cursor-pointer group"
                       onClick={() => router.push(`/tracker/sales/${encodeURIComponent(s.email)}`)}
                     >
-                      <td className="p-4 align-middle font-bold text-foreground group-hover:text-primary underline-offset-4 group-hover:underline">{s.email}</td>
+                      <td className="p-4 align-middle group-hover:text-primary underline-offset-4 group-hover:underline">
+                        <div className="font-bold text-foreground">{s.name !== "Unknown" ? s.name : s.email.split('@')[0]}</div>
+                        <div className="text-[10px] text-muted-foreground font-normal">{s.email}</div>
+                        {s.phone && <div className="text-[10px] text-emerald-600 mt-0.5 font-normal">{s.phone}</div>}
+                      </td>
                       <td className="p-4 align-middle text-center">{s.invoiceCount}</td>
                       <td className="p-4 align-middle text-right font-medium">{s.totalVolume.toLocaleString("id-ID", { maximumFractionDigits: 2 })} m³</td>
                       <td className="p-4 align-middle text-right font-black text-slate-800">Rp {s.totalRevenue.toLocaleString("id-ID")}</td>
@@ -739,7 +978,120 @@ export function InvoiceDashboard() {
             </div>
           </section>
         </>
-      )}
+      ) : activeTab === "customers" ? (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Top Royal / Menguntungkan */}
+            <section className="rounded-lg border bg-card p-4 space-y-3">
+              <h2 className="text-xs font-bold text-emerald-600 uppercase tracking-wide">
+                Pelanggan Royal
+              </h2>
+              {stats.topBuyers.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic py-3 text-center">Belum ada data</p>
+              ) : (
+                <div className="divide-y text-xs">
+                  {stats.topBuyers.slice(0, 5).map((buyer, idx) => (
+                    <div key={buyer.id} className="flex items-center gap-3 py-2.5 px-1 hover:bg-emerald-50/50 rounded transition-colors">
+                      <div className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 font-bold text-[10px] shrink-0">
+                        {idx + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-foreground">{buyer.company || buyer.name}</p>
+                        {buyer.company && <p className="truncate text-[10px] text-muted-foreground mt-0.5">{buyer.name}</p>}
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="font-bold text-emerald-600">Rp {buyer.totalDeal.toLocaleString("id-ID")}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{buyer.totalVolume.toLocaleString("id-ID", { maximumFractionDigits: 2 })} m³</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Sering Belum Lunas */}
+            <section className="rounded-lg border bg-card p-4 space-y-3">
+              <h2 className="text-xs font-bold text-red-600 uppercase tracking-wide">
+                Sering Nunggak
+              </h2>
+              {stats.topUnpaidBuyers.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic py-3 text-center">Aman, tidak ada piutang</p>
+              ) : (
+                <div className="divide-y text-xs">
+                  {stats.topUnpaidBuyers.slice(0, 5).map((buyer, idx) => (
+                    <div key={buyer.id} className="flex items-center gap-3 py-2.5 px-1 hover:bg-red-50/50 rounded transition-colors">
+                      <div className="flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-600 font-bold text-[10px] shrink-0">
+                        {idx + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-foreground">{buyer.company || buyer.name}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="font-bold text-red-600">Rp {buyer.totalOutstanding.toLocaleString("id-ID")}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{buyer.invoiceCount} Transaksi</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Produk Paling Laris */}
+            <section className="rounded-lg border bg-card p-4 space-y-3">
+              <h2 className="text-xs font-bold text-blue-600 uppercase tracking-wide">
+                Produk Laris
+              </h2>
+              {stats.topProducts.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic py-3 text-center">Belum ada data</p>
+              ) : (
+                <div className="divide-y text-xs">
+                  {stats.topProducts.slice(0, 5).map((p, idx) => (
+                    <div key={p.name} className="flex items-center gap-3 py-2.5 px-1 hover:bg-blue-50/50 rounded transition-colors">
+                      <div className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-600 font-bold text-[10px] shrink-0">
+                        {idx + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-foreground">{p.name}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="font-bold text-blue-600">Rp {p.revenue.toLocaleString("id-ID")}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{p.volume.toLocaleString("id-ID", { maximumFractionDigits: 2 })} m³</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Tujuan Populer */}
+            <section className="rounded-lg border bg-card p-4 space-y-3">
+              <h2 className="text-xs font-bold text-purple-600 uppercase tracking-wide">
+                Tujuan Populer
+              </h2>
+              {stats.topDestinations.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic py-3 text-center">Belum ada data</p>
+              ) : (
+                <div className="divide-y text-xs">
+                  {stats.topDestinations.slice(0, 5).map((d, idx) => (
+                    <div key={d.city} className="flex items-center gap-3 py-2.5 px-1 hover:bg-purple-50/50 rounded transition-colors">
+                      <div className="flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 text-purple-600 font-bold text-[10px] shrink-0">
+                        {idx + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-foreground">{d.city}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="font-bold text-purple-600">Rp {d.revenue.toLocaleString("id-ID")}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{d.count} Pesanan</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

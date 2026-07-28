@@ -1,9 +1,10 @@
-import { useState, useMemo, type FormEvent } from "react";
+import { useState, useMemo, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/router";
 import { useInvoices } from "@/hooks/useInvoices";
 import { usePresetItems } from "@/hooks/usePresetItems";
 import { useClients } from "@/hooks/useClients";
 import { useAuth } from "@/hooks/useAuth";
+import { useShippingRates } from "@/hooks/useShippingRates";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -22,8 +23,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { downloadPDF, DocType } from "@/lib/pdfExport";
+import { RegionInputs } from "./RegionInputs";
 import { loadCompanyProfile } from "@/lib/companyProfile";
 import {
   Plus, Trash2, Save, Download, Calendar, Truck,
@@ -32,9 +35,16 @@ import {
 import {
   Invoice, InvoiceInput, InvoiceItemInput, INVOICE_STATUS_CONFIG,
 } from "@/types/invoice";
+import { useToast } from "@/hooks/use-toast";
 
 function today() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function todayDateTime() {
+  const d = new Date();
+  const tzOffset = d.getTimezoneOffset() * 60000;
+  return (new Date(d.getTime() - tzOffset)).toISOString().slice(0, 16);
 }
 
 function defaultInvoiceNumber() {
@@ -49,7 +59,7 @@ function toItemInput(item: Invoice["items"][number]): InvoiceItemInput {
     actual_quantity: item.actual_quantity ?? null,
     unit_price: item.unit_price,
     buy_in_price: item.buy_in_price || 0,
-    commission_rate: (item as any).commission_rate || 5000,
+    ajm_price: (item as any).ajm_price || 0,
     sort_order: item.sort_order,
   };
 }
@@ -57,13 +67,19 @@ function toItemInput(item: Invoice["items"][number]): InvoiceItemInput {
 function formatIndonesianDate(dateStr: string | null) {
   if (!dateStr) return "-";
   try {
-    const parts = dateStr.split("-");
+    const isDateTime = dateStr.includes("T");
+    const [datePart, timePart] = dateStr.split("T");
+    const parts = datePart.split("-");
     if (parts.length !== 3) return dateStr;
     const months = [
       "Januari","Februari","Maret","April","Mei","Juni",
       "Juli","Agustus","September","Oktober","November","Desember",
     ];
-    return `${parseInt(parts[2], 10)} ${months[parseInt(parts[1], 10) - 1]} ${parts[0]}`;
+    const dateFormatted = `${parseInt(parts[2], 10)} ${months[parseInt(parts[1], 10) - 1]} ${parts[0]}`;
+    if (isDateTime && timePart) {
+      return `${dateFormatted} - ${timePart.slice(0, 5)}`;
+    }
+    return dateFormatted;
   } catch { return dateStr; }
 }
 
@@ -102,13 +118,13 @@ function ProductSelector({ value, itemDescription, presetItems, onSelect }: Prod
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[300px] sm:w-[420px] p-2 bg-card border rounded-lg shadow-lg" align="start">
-        <div className="flex items-center gap-2 border-b pb-2 px-1 mb-1">
-          <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <div className="relative pb-2 mb-1 border-b">
+          <Search className="absolute left-2.5 top-[9px] h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <Input
             placeholder="Cari nama produk..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8 text-xs border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0"
+            className="h-8 text-xs pl-8 bg-muted/40"
             autoFocus
           />
         </div>
@@ -152,25 +168,31 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
   const { presetItems } = usePresetItems();
   const { clients, isLoading: clientsLoading } = useClients();
   const { user } = useAuth();
+  const { rates: shippingRates, isLoading: loadingShipping } = useShippingRates();
+  const { toast } = useToast();
 
   // role helpers
   const isSales = user?.role === "user" || user?.role === "sales";
   const isAdmin = user?.role === "owner" || user?.role === "admin" || user?.role === "manager";
-
+  
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [manualClient, setManualClient] = useState(invoice ? !invoice.client_id : true);
   const [catalogSearch, setCatalogSearch] = useState("");
+  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
 
   const [form, setForm] = useState<InvoiceInput>({
     invoice_number: invoice?.invoice_number ?? defaultInvoiceNumber(),
-    status: invoice?.status ?? "tagihan",
+    status: invoice?.status ?? "penawaran",
     currency: invoice?.currency ?? "IDR",
     issue_date: invoice?.issue_date ?? today(),
-    due_date: invoice?.due_date ?? "",
+    due_date: invoice?.due_date 
+      ? (invoice.due_date.length === 10 ? `${invoice.due_date}T08:00` : invoice.due_date)
+      : "",
     paid_date: invoice?.paid_date ?? "",
     discount: invoice?.discount ?? 0,
     tax: invoice?.tax ?? 0,
+    shipping_fee: invoice?.shipping_fee ?? 0,
     fee: invoice?.fee ?? 0,
     notes: invoice?.notes ?? "",
     terms: invoice?.terms ?? "Transfer ke Rekening BCA Rek. 150.455.5758 a/n CV ADITARA JAYA MAKMUR",
@@ -183,11 +205,13 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
           company: invoice.client.company ?? "",
           phone: invoice.client.phone ?? "",
           address: invoice.client.address ?? "",
+          province: invoice.client.province ?? "",
+          city: invoice.client.city ?? "",
+          district: invoice.client.district ?? "",
+          postal_code: invoice.client.postal_code ?? "",
         }
-      : { name: "", email: "", company: "", phone: "", address: "" },
-    items: invoice?.items.map(toItemInput) ?? [
-      { description: "", quantity: 1, actual_quantity: null, unit_price: 0, buy_in_price: 0, commission_rate: 5000, sort_order: 0 },
-    ],
+      : { name: "", email: "", company: "", phone: "", address: "", province: "", city: "", district: "", postal_code: "" },
+    items: invoice?.items.map(toItemInput) ?? [],
   });
 
   const [includePpn, setIncludePpn] = useState(
@@ -196,7 +220,49 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
       : true
   );
 
+  // Gunakan layout card (seperti Sales) jika role=Sales ATAU jika status="penawaran" (meskipun Admin yang buat)
+  const isCardLayout = isSales || (form?.status === "penawaran" || !form?.status);
 
+  // Helper untuk memetakan provinsi ke pulau
+  const getIslandAreaFromProvince = (prov: string): string => {
+    if (!prov) return "ISLAND_JAWA"; // Default jika tidak tahu
+    const p = prov.toLowerCase();
+    if (p.includes("jawa") || p.includes("jakarta") || p.includes("banten") || p.includes("yogyakarta")) return "ISLAND_JAWA";
+    if (p.includes("sumatera") || p.includes("aceh") || p.includes("riau") || p.includes("jambi") || p.includes("bengkulu") || p.includes("lampung") || p.includes("bangka")) return "ISLAND_SUMATERA";
+    if (p.includes("kalimantan")) return "ISLAND_KALIMANTAN";
+    if (p.includes("sulawesi") || p.includes("gorontalo")) return "ISLAND_SULAWESI";
+    if (p.includes("bali") || p.includes("nusa")) return "ISLAND_BALI_NUSA";
+    if (p.includes("maluku") || p.includes("papua")) return "ISLAND_MALUKU_PAPUA";
+    return "ISLAND_JAWA";
+  };
+
+  // Auto-fill ongkir: Berdasarkan Pulau & Minimal Order
+  useEffect(() => {
+    if (shippingRates.length === 0 || loadingShipping) return;
+    
+    const province = form.client?.province || "";
+    const islandCode = getIslandAreaFromProvince(province);
+    
+    const islandRate = shippingRates.find(r => r.area === islandCode);
+    const globalMinOrder = shippingRates.find(r => r.area === "GLOBAL_MIN_ORDER");
+
+    const islandFee = islandRate ? islandRate.price : 0;
+    const minOrderForFree = globalMinOrder ? globalMinOrder.price : 0;
+    
+    // Hitung subtotal sementara
+    const currentSubtotal = form.items.reduce((sum, item) => {
+      const billedQty = item.actual_quantity != null ? Number(item.actual_quantity) : Number(item.quantity || 0);
+      return sum + billedQty * Number(item.unit_price || 0);
+    }, 0);
+
+    const expectedShipping = (minOrderForFree > 0 && currentSubtotal >= minOrderForFree) ? 0 : islandFee;
+    
+    setForm(prev => {
+      if (prev.shipping_fee === expectedShipping) return prev;
+      return { ...prev, shipping_fee: expectedShipping };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shippingRates, loadingShipping, form.items, form.client?.province]);
 
   // -- totals – line_total uses actual_quantity when set ---------------------
   const totals = useMemo(() => {
@@ -208,9 +274,9 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
     return {
       subtotal,
       tax: calculatedTax,
-      total: Math.max(0, subtotal - Number(form.discount || 0) + calculatedTax),
+      total: Math.max(0, subtotal - Number(form.discount || 0) + calculatedTax + Number(form.shipping_fee || 0)),
     };
-  }, [form.discount, form.items, form.tax, includePpn]);
+  }, [form.discount, form.items, form.tax, form.shipping_fee, includePpn]);
 
   // -- margin internal (admin only) -----------------------------------------
   // Formula sesuai spreadsheet:
@@ -229,8 +295,8 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
       const dealQty = Number(item.quantity || 0);
       const billedQty = item.actual_quantity != null ? Number(item.actual_quantity) : dealQty;
       const dealPrice = Number(item.unit_price || 0);
-      const commission = Number(item.commission_rate || 0);
-      const ajmPrice = dealPrice - commission;
+      const ajmPrice = Number((item as any).ajm_price || 0);
+      const commission = dealPrice - ajmPrice;
       
       totalDeal += billedQty * dealPrice;
       totalAjm += billedQty * ajmPrice;
@@ -240,17 +306,37 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
       sisaPOVol += (dealQty - billedQty);
     }
     const ppnSupplier = Math.round(totalHppDibayar * 0.11);
-    const globalFee = Number(form.fee || 0); // Opex / Biaya lain
+    const ppnCustomer = Math.round(totalDeal * 0.11);
+    const ppnAjm = Math.round(totalAjm * 0.11);
+    const shippingFee = Number(form.shipping_fee || 0);
     const grossMargin = totalAjm - totalHppTerpakai;
-    const netMargin = grossMargin - globalFee;
-    return { totalDeal, totalAjm, totalEksternalFee, totalHpp: totalHppTerpakai, totalHppDibayar, ppnSupplier, globalFee, grossMargin, netMargin, sisaPOVol };
-  }, [form.items, form.fee]);
+    const netMargin = grossMargin + shippingFee;
+    return { totalDeal, totalAjm, totalEksternalFee, totalHpp: totalHppTerpakai, totalHppDibayar, ppnSupplier, ppnCustomer, ppnAjm, grossMargin, netMargin, sisaPOVol };
+  }, [form.items, form.shipping_fee]);
 
   const updateItem = (index: number, key: keyof InvoiceItemInput, value: string | number | null) => {
     setForm((cur) => ({
       ...cur,
       items: cur.items.map((item, i) => i === index ? { ...item, [key]: value } : item),
     }));
+  };
+
+  const appendItem = () => {
+    setForm({
+      ...form,
+      items: [
+        ...form.items,
+        {
+          description: "",
+          quantity: 1,
+          actual_quantity: null,
+          unit_price: 0,
+          buy_in_price: 0,
+          ajm_price: 0,
+          sort_order: form.items.length,
+        },
+      ],
+    });
   };
 
   const removeItem = (index: number) => {
@@ -266,7 +352,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
       paid_date: form.paid_date || null,
       discount: Number(form.discount || 0),
       tax: totals.tax,
-      fee: Number(form.fee || 0),
+      fee: 0,
       items: form.items
         .filter((item) => item.description.trim())
         .map((item, index) => ({
@@ -275,7 +361,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
           actual_quantity: item.actual_quantity != null ? Number(item.actual_quantity) : null,
           unit_price: Number(item.unit_price || 0),
           buy_in_price: Number(item.buy_in_price || 0),
-          commission_rate: Number(item.commission_rate || 5000),
+          ajm_price: Number((item as any).ajm_price || 0),
           sort_order: index,
         })),
     };
@@ -312,7 +398,6 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
           actual_quantity: item.actual_quantity != null ? Number(item.actual_quantity) : null,
           unit_price: Number(item.unit_price || 0),
           buy_in_price: Number(item.buy_in_price || 0),
-          commission_rate: Number(item.commission_rate || 5000),
           sort_order: index,
         })),
     };
@@ -356,7 +441,6 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
             actual_quantity: item.actual_quantity ?? null,
             unit_price: price,
             buy_in_price: Number(item.buy_in_price || 0),
-            commission_rate: Number(item.commission_rate || 5000),
             line_total: billedQty * price,
             sort_order: idx,
           };
@@ -372,7 +456,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
     }
   };
 
-  const currentStageIndex = ["penawaran", "tagihan", "po", "pengiriman", "selesai"].indexOf(form.status || "penawaran");
+  const currentStageIndex = ["penawaran", "po", "pengiriman", "tagihan", "selesai"].indexOf(form.status || "penawaran");
   const canEditStatus = isAdmin;
   // Sales bisa buat/edit di tahap penawaran dan tagihan
   const salesCanEdit = isSales && (form.status === "penawaran" || form.status === "tagihan");
@@ -390,40 +474,6 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
         </div>
       )}
 
-      {/* Workflow Stepper */}
-      {!isSales && (
-        <div className="flex items-center justify-between bg-muted/30 p-4 rounded-xl border">
-          {["penawaran", "tagihan", "po", "pengiriman", "selesai"].map((stage, index) => {
-            const isActive = index === currentStageIndex;
-            const isCompleted = index < currentStageIndex;
-            const stageName = INVOICE_STATUS_CONFIG[stage as keyof typeof INVOICE_STATUS_CONFIG]?.label || stage;
-            return (
-              <div key={stage} className="flex items-center">
-                <button
-                  type="button"
-                  onClick={() => { if (canEditStatus) setForm({ ...form, status: stage as any }); }}
-                  className={`flex items-center outline-none transition-opacity ${canEditStatus ? "cursor-pointer hover:opacity-75" : "cursor-default"}`}
-                  title={canEditStatus ? `Lompat ke tahap ${stageName}` : undefined}
-                >
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm border-2 transition-colors ${
-                    isActive ? "bg-slate-800 text-white border-slate-800 shadow-md"
-                    : isCompleted ? "bg-slate-200 text-slate-700 border-slate-200"
-                    : "bg-muted text-muted-foreground border-muted-foreground/30"
-                  }`}>
-                    {index + 1}
-                  </div>
-                  <span className={`ml-2 text-xs font-bold hidden sm:block transition-colors ${
-                    isActive ? "text-slate-800" : isCompleted ? "text-foreground" : "text-muted-foreground"
-                  }`}>{stageName}</span>
-                </button>
-                {index < 4 && (
-                  <div className={`w-3 sm:w-8 md:w-16 lg:w-24 h-1 mx-2 sm:mx-3 rounded-full transition-colors ${isCompleted ? "bg-slate-300" : "bg-muted"}`} />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       {/* Main Grid */}
       <div className="grid gap-6 lg:grid-cols-[1fr_360px] items-start">
@@ -442,11 +492,11 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                   <p className="text-[10px] text-emerald-600 mt-0.5">Admin: isi volume aktual terkirim. Bisa berbeda dari volume deal.</p>
                 )}
               </div>
-              {canEditItems && !isSales && (
+              {canEditItems && !isCardLayout && (
                 <Button
                   type="button" variant="outline" size="sm"
-                  onClick={() => setForm((prev) => ({ ...prev, items: [...prev.items, { description: "", quantity: 1, actual_quantity: null, unit_price: 0, buy_in_price: 0, commission_rate: 5000, sort_order: prev.items.length }] }))}
-                  className="text-xs font-semibold"
+                  onClick={() => setForm((prev) => ({ ...prev, items: [...prev.items, { description: "", quantity: 1, actual_quantity: null, unit_price: 0, buy_in_price: 0, sort_order: prev.items.length }] }))}
+                  className="h-9 gap-1.5 text-xs font-semibold"
                 >
                   <Plus className="mr-1.5 h-3.5 w-3.5" /> Tambah Produk
                 </Button>
@@ -454,7 +504,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
             </div>
 
             {/* Column headers (Admin only) */}
-            {!isSales && (
+            {!isCardLayout && (
               <div className={`grid gap-1.5 sm:gap-2 px-1 text-[10px] sm:text-xs font-bold text-muted-foreground ${
                 isAdmin && (form.status === "pengiriman")
                   ? "grid-cols-[1fr_60px_60px_90px_90px_28px]"
@@ -476,7 +526,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
             )}
 
             <div className="space-y-2">
-              {isSales ? (
+              {isCardLayout ? (
                 <>
                   {/* Header row */}
                   {form.items.filter(i => i.description.trim()).length > 0 && (
@@ -491,12 +541,9 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                   {form.items.map((item, index) => (
                     <div key={index} className="grid grid-cols-[1fr_64px_86px_28px] gap-1.5 items-center bg-card border rounded-xl px-3 py-2 shadow-sm">
                       <div className="min-w-0">
-                        <Input
-                          value={item.description}
-                          onChange={(e) => updateItem(index, "description", e.target.value)}
-                          placeholder="Nama produk..."
-                          className="h-8 text-xs font-semibold border-0 shadow-none p-0 focus-visible:ring-0 bg-transparent"
-                        />
+                        <div className="h-8 text-xs font-semibold flex items-center bg-transparent truncate" title={item.description}>
+                          {item.description || "Pilih dari katalog"}
+                        </div>
                       </div>
                       <Input
                         type="number" min="0" step="any"
@@ -523,17 +570,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
 
                   {/* Add buttons */}
                   <div className="flex gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => setForm(cur => ({
-                        ...cur,
-                        items: [...cur.items, { description: "", quantity: 1, actual_quantity: null, unit_price: 0, buy_in_price: 0, commission_rate: 5000, sort_order: cur.items.length }]
-                      }))}
-                      className="flex-1 h-9 border border-dashed border-slate-300 rounded-lg text-xs font-semibold text-muted-foreground hover:border-slate-600 hover:text-foreground hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5"
-                    >
-                      <Plus className="h-3.5 w-3.5" /> Tambah Manual
-                    </button>
-                    <Dialog>
+                    <Dialog open={isCatalogOpen} onOpenChange={setIsCatalogOpen}>
                       <DialogTrigger asChild>
                         <button
                           type="button"
@@ -542,18 +579,21 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                           <Plus className="h-3.5 w-3.5" /> Dari Katalog
                         </button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-lg w-full h-[100dvh] sm:h-auto p-0 overflow-hidden flex flex-col border-0 sm:border rounded-none sm:rounded-xl">
-                        <DialogHeader className="p-4 border-b shrink-0">
+                      <DialogContent className="max-w-lg w-full h-[100dvh] sm:h-[80vh] p-0 flex flex-col border-0 sm:border rounded-none sm:rounded-xl bg-card overflow-hidden">
+                        <DialogHeader className="p-4 border-b shrink-0 relative bg-muted/30">
                           <DialogTitle className="font-black text-lg">Pilih Produk</DialogTitle>
-                          <Input
-                            placeholder="Cari produk..."
-                            className="mt-3 h-10 text-sm"
-                            value={catalogSearch}
-                            onChange={(e) => setCatalogSearch(e.target.value)}
-                            autoFocus
-                          />
+                          <div className="relative mt-3">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                            <Input
+                              placeholder="Cari produk..."
+                              className="h-10 pl-9 text-sm bg-background"
+                              value={catalogSearch}
+                              onChange={(e) => setCatalogSearch(e.target.value)}
+                              autoFocus
+                            />
+                          </div>
                         </DialogHeader>
-                        <div className="flex-1 overflow-y-auto p-3 space-y-1.5 sm:max-h-[55vh]">
+                        <div className="flex-1 overflow-y-auto p-3 space-y-1.5 pb-6">
                           {presetItems.length === 0 ? (
                             <p className="text-sm text-muted-foreground text-center py-8">Belum ada produk. Hubungi admin.</p>
                           ) : (
@@ -567,8 +607,12 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                                   const desc = p.name + (p.description ? ` - ${p.description}` : "");
                                   setForm(cur => ({
                                     ...cur,
-                                    items: [...cur.items, { description: desc, quantity: 1, actual_quantity: null, unit_price: Number(p.unit_price) || 0, buy_in_price: Number(p.buy_in_price) || 0, commission_rate: 5000, sort_order: cur.items.length }]
+                                    items: [...cur.items, { description: desc, quantity: 1, actual_quantity: null, unit_price: Number(p.unit_price) || 0, buy_in_price: Number(p.buy_in_price) || 0, sort_order: cur.items.length }]
                                   }));
+                                  toast({ 
+                                    title: "✅ Berhasil ditambahkan", 
+                                    description: p.name,
+                                  });
                                 }}
                                 className="w-full flex items-center justify-between text-left px-4 py-3.5 rounded-xl border bg-card hover:border-slate-800 hover:bg-slate-50 transition-all group"
                               >
@@ -582,6 +626,14 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                               </button>
                             ))
                           )}
+                        </div>
+                        <div className="p-3 border-t bg-card shrink-0">
+                          <Button 
+                            onClick={() => setIsCatalogOpen(false)} 
+                            className="w-full h-11 font-bold text-sm bg-slate-900 hover:bg-slate-800 text-white"
+                          >
+                            Tutup Katalog
+                          </Button>
                         </div>
                       </DialogContent>
                     </Dialog>
@@ -604,7 +656,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                   )}
 
                   {/* HEADER DESKTOP (ADMIN: PENAWARAN / DEFAULT) */}
-                  {isAdmin && !(form.status === "tagihan" || form.status === "po" || form.status === "pengiriman") && !isSales && (
+                  {isAdmin && !(form.status === "tagihan" || form.status === "po" || form.status === "pengiriman") && !isCardLayout && (
                     <div className="hidden sm:grid grid-cols-[1fr_60px_90px_28px] gap-2 px-3 pb-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b mb-2">
                       <div>Produk / Layanan</div>
                       <div className="text-center">Vol</div>
@@ -628,7 +680,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                       isSales
                         ? "grid-cols-1 sm:grid-cols-[1fr_80px_120px_auto] bg-card p-3 rounded-xl border shadow-sm mb-2"
                         : isAdmin && form.status === "pengiriman"
-                          ? "grid-cols-[1fr_45px_45px_65px_80px_80px_90px_28px]"
+                          ? "grid-cols-[1fr_45px_45px_80px_80px_90px_28px]"
                           : isAdmin && (form.status === "tagihan" || form.status === "po")
                             ? "grid-cols-[1fr_45px_45px_80px_80px_90px_28px]"
                             : "grid-cols-[1fr_60px_90px_28px]"
@@ -643,11 +695,13 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                             onSelect={(val) => {
                               const sel = presetItems.find((p) => p.id === val);
                               if (sel) {
-                                // Hanya isi nama produk — harga deal & buy in harus diisi manual
-                                // karena harga selalu berubah-ubah per deal
                                 const desc = sel.name + (sel.description ? ` - ${sel.description}` : "");
-                                updateItem(index, "description", desc);
-                                // Tidak auto-fill unit_price & buy_in_price
+                                setForm((cur) => ({
+                                  ...cur,
+                                  items: cur.items.map((it, i) => 
+                                    i === index ? { ...it, description: desc, ajm_price: sel.ajm_price || 0 } : it
+                                  ),
+                                }));
                               }
                             }}
                           />
@@ -685,17 +739,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                         </div>
                       )}
 
-                      {/* Komisi Sales per m3 (pengiriman stage, admin only) */}
-                      {isAdmin && form.status === "pengiriman" && (
-                        <div>
-                          <Input type="number" min="0" step="any" placeholder="5000"
-                            value={item.commission_rate ?? ""}
-                            onChange={(e) => updateItem(index, "commission_rate", e.target.value ? Number(e.target.value) : 0)}
-                            className="h-9 text-right text-xs px-1 border-purple-200 bg-purple-50/50"
-                            title="Komisi Sales per m³"
-                          />
-                        </div>
-                      )}
+
 
                       {/* HPP Beli (admin: tagihan, po & pengiriman) */}
                       {isAdmin && (form.status === "tagihan" || form.status === "po" || form.status === "pengiriman") && (
@@ -819,18 +863,38 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                     {[
                       { id: "client_name", label: "Nama Pelanggan / Perusahaan", key: "name", placeholder: "Bpk. Bachnas", required: true },
                       { id: "client_phone", label: "Telepon", key: "phone", placeholder: "0812..." },
-                      { id: "client_email", label: "Email", key: "email", placeholder: "client@mail.com" },
-                      { id: "client_address", label: "Alamat", key: "address", placeholder: "Jl. Sukabumi..." },
                     ].map(({ id, label, key, placeholder, required }) => (
                       <div key={id}>
                         <Label htmlFor={id} className="text-[10px] text-muted-foreground uppercase">{label}</Label>
                         <Input id={id} required={required}
                           value={(form.client as any)?.[key] ?? ""}
-                          onChange={(e) => setForm({ ...form, client: { ...(form.client ?? { name: "" }), [key]: e.target.value } })}
+                          onChange={(e) => {
+                            let val = e.target.value;
+                            if (key === "phone") {
+                              val = val.replace(/\D/g, ''); // Hanya boleh angka
+                            }
+                            setForm({ ...form, client: { ...(form.client ?? { name: "" }), [key]: val } })
+                          }}
                           placeholder={placeholder} className="h-9 mt-1 text-xs"
                         />
                       </div>
                     ))}
+                    <div className="col-span-1 sm:col-span-2 md:col-span-2">
+                      <Label htmlFor="client_address" className="text-[10px] text-muted-foreground uppercase">Alamat Jalan</Label>
+                      <Textarea id="client_address"
+                        value={form.client?.address ?? ""}
+                        onChange={(e) => setForm({ ...form, client: { ...(form.client ?? { name: "" }), address: e.target.value } })}
+                        placeholder="Jl. Sukabumi..." className="mt-1 text-xs min-h-[40px]"
+                      />
+                    </div>
+                    
+                    <RegionInputs 
+                      client={form.client} 
+                      onChange={(key, value) => {
+                        const updatedClient = { ...(form.client ?? { name: "" }), [key]: value };
+                        setForm({ ...form, client: updatedClient });
+                      }} 
+                    />
                   </div>
                 ) : (
                   <div>
@@ -859,33 +923,18 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                   </div>
                 )}
 
-                {form.status === "po" && (
-                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2 pt-2 border-t">
-                    <div>
-                      <Label htmlFor="due_date" className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5" /> Tanggal Pengiriman
-                      </Label>
-                      <Input id="due_date" type="date" value={form.due_date ?? ""}
-                        onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-                        onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
-                        onKeyDown={(e) => e.preventDefault()}
-                        readOnly={isSales}
-                        className="h-10 mt-1.5 cursor-pointer"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="notes" className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                        <Truck className="w-3.5 h-3.5" /> Lokasi Proyek / Alamat Kirim
-                      </Label>
-                        <Textarea id="notes" value={form.notes ?? ""}
-                          onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                          placeholder="Contoh: Jl. Melon Raya No.79, Surakarta"
-                          readOnly={isSales}
-                          className="mt-1.5 min-h-[40px] text-xs h-10 py-2.5"
-                        />
-                      </div>
+                <div className="pt-3 mt-2 border-t sm:max-w-xs">
+                  <div>
+                    <Label htmlFor="due_date" className="text-xs font-semibold text-muted-foreground">
+                      Tanggal & Jam Pengiriman
+                    </Label>
+                    <Input id="due_date" type="datetime-local" value={form.due_date ?? ""}
+                      onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+                      readOnly={isSales}
+                      className="h-10 mt-1.5"
+                    />
                   </div>
-                )}
+                </div>
               </div>
             )}
           </div>
@@ -896,38 +945,63 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
           <div className="space-y-4">
 
             {/* Payment summary (non-penawaran for admin, but let's show simple total for Sales) */}
-            {(form.status !== "penawaran" || isSales) && (
+            {(form.status !== "penawaran" || isCardLayout) && (
               <>
                 <h2 className="font-bold text-foreground text-sm border-b pb-2">Ringkasan Nilai Transaksi</h2>
                 
-                {(!isSales || (form.discount || 0) > 0 || totals.tax > 0) && (
+                {(!isCardLayout || (form.discount || 0) > 0 || totals.tax > 0) && (
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Subtotal</span>
                     <span className="font-semibold text-foreground">Rp {totals.subtotal.toLocaleString("id-ID")}</span>
                   </div>
                 )}
 
-                {isAdmin && (
-                  <div className="space-y-1">
-                    <Label htmlFor="discount" className="text-[10px] text-muted-foreground uppercase font-semibold">Potongan Diskon (Rp)</Label>
-                    {form.status === "pengiriman" || form.status === "selesai" || form.status === "batal" ? (
-                      <div className="h-9 text-xs flex items-center px-2 bg-muted/20 border border-slate-100 rounded-md font-semibold">
-                        Rp {Number(form.discount || 0).toLocaleString("id-ID")}
-                      </div>
-                    ) : (
-                      <Input id="discount" type="number" min="0" value={form.discount || ""}
-                        onChange={(e) => setForm({ ...form, discount: e.target.value ? Number(e.target.value) : 0 })}
-                        className="h-9 text-xs" placeholder="Rp 0"
-                      />
-                    )}
-                  </div>
-                )}
-                {!isAdmin && (form.discount || 0) > 0 && (
+                {(form.discount || 0) > 0 && (
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Diskon</span>
                     <span className="font-semibold text-red-600">- Rp {Number(form.discount).toLocaleString("id-ID")}</span>
                   </div>
                 )}
+
+                {/* Ongkos Kirim */}
+                {(() => {
+                  const shippingVal = Number(form.shipping_fee ?? 0);
+                  const hasRates = shippingRates.length > 0;
+                  const globalMinOrder = shippingRates.find(r => r.area === "GLOBAL_MIN_ORDER");
+                  const isConfigured = !!globalMinOrder;
+
+                  if (shippingVal > 0) {
+                    return (
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1"><Truck className="h-3 w-3" /> Ongkos Kirim</span>
+                        <span className="font-semibold text-foreground">+ Rp {shippingVal.toLocaleString("id-ID")}</span>
+                      </div>
+                    );
+                  }
+                  if (isAdmin && !hasRates && !loadingShipping) {
+                    return (
+                      <div className="text-[10px] text-amber-500 flex items-center gap-1">
+                        <Truck className="h-3 w-3" /> Atur tarif ongkir di Pengaturan → Ongkos Kirim
+                      </div>
+                    );
+                  }
+                  if (isAdmin && hasRates && !isConfigured) {
+                    return (
+                      <div className="text-[10px] text-amber-500 flex items-center gap-1">
+                        <Truck className="h-3 w-3" /> Silakan simpan ulang pengaturan Ongkos Kirim Per Pulau
+                      </div>
+                    );
+                  }
+                  if (shippingVal === 0 && isConfigured) {
+                    return (
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1"><Truck className="h-3 w-3" /> Ongkos Kirim</span>
+                        <span className="font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">GRATIS</span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
 
                 {isAdmin && (
                   <div className="flex items-center justify-between py-1 text-xs">
@@ -942,7 +1016,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                         onClick={() => setIncludePpn(!includePpn)}
                         className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${includePpn ? "bg-primary" : "bg-muted-foreground/30"}`}
                       >
-                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${includePpn ? "translate-x-4.5" : "translate-x-0.5"}`} />
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${includePpn ? "translate-x-4" : "translate-x-1"}`} />
                       </button>
                     )}
                   </div>
@@ -955,10 +1029,40 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                   </div>
                 )}
 
-                <div className={`flex justify-between font-extrabold text-foreground ${isSales ? 'text-lg' : 'border-t pt-3 text-sm'}`}>
-                  <span>{isSales ? 'Total Estimasi' : 'Total Akhir'}</span>
+                <div className={`flex justify-between font-extrabold text-foreground ${isCardLayout ? 'text-lg' : 'border-t pt-3 text-sm'}`}>
+                  <span>{isCardLayout ? 'Total Estimasi' : 'Total Akhir'}</span>
                   <span>Rp {totals.total.toLocaleString("id-ID")}</span>
                 </div>
+
+                {isAdmin && form.status !== "penawaran" && (
+                  <div className="pt-3 border-t mt-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="amount_paid" className="text-[10px] text-muted-foreground uppercase font-semibold">Telah Dibayar (Rp)</Label>
+                      {form.status !== "selesai" && form.status !== "batal" && (
+                        <button type="button" onClick={() => setForm({...form, amount_paid: totals.total})} className="text-[10px] text-blue-600 font-bold hover:underline">
+                          Set Lunas
+                        </button>
+                      )}
+                    </div>
+                    {form.status === "selesai" || form.status === "batal" ? (
+                      <div className="h-9 text-xs flex items-center px-2 bg-muted/20 border border-slate-100 rounded-md font-semibold text-emerald-700">
+                        Rp {Number(form.amount_paid || 0).toLocaleString("id-ID")}
+                      </div>
+                    ) : (
+                      <Input id="amount_paid" type="number" min="0" value={form.amount_paid ?? ""}
+                        onChange={(e) => setForm({ ...form, amount_paid: e.target.value === "" ? 0 : Number(e.target.value) })}
+                        className="h-9 text-xs font-bold" placeholder="Rp 0"
+                      />
+                    )}
+                    
+                    <div className="flex justify-between font-bold text-sm text-foreground">
+                      <span>Sisa Piutang</span>
+                      <span className={(totals.total - (form.amount_paid || 0)) > 0 ? "text-red-600" : "text-emerald-600"}>
+                        Rp {Math.max(0, totals.total - (form.amount_paid || 0)).toLocaleString("id-ID")}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
@@ -976,18 +1080,28 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                   <span className="font-semibold text-foreground">Rp {marginTotals.totalDeal.toLocaleString("id-ID")}</span>
                 </div>
                 
+                {/* CUSTOMER PPN */}
+                <div className="flex justify-between text-muted-foreground pb-1 border-b border-dashed text-xs">
+                  <span>PPN 11% Customer (Harga Deal)</span>
+                  <span>Rp {marginTotals.ppnCustomer.toLocaleString("id-ID")}</span>
+                </div>
+                
                 {/* EXTERNAL FEE */}
                 {marginTotals.totalEksternalFee > 0 && (
-                  <div className="flex justify-between text-red-600 pb-1 border-b border-dashed font-medium">
-                    <span>Fee Eksternal / Uang Mandor (Otomatis)</span>
+                  <div className="flex justify-between text-blue-600 pb-1 border-b border-dashed font-bold">
+                    <span>Total Komisi Sales (Otomatis dari Selisih Deal - AJM)</span>
                     <span>- Rp {marginTotals.totalEksternalFee.toLocaleString("id-ID")}</span>
                   </div>
                 )}
                 
                 {/* AJM side */}
-                <div className="flex justify-between text-muted-foreground pb-1 border-b border-dashed">
+                <div className="flex justify-between text-muted-foreground pt-1">
                   <span>Total Pendapatan Asli (AJM)</span>
                   <span className="font-semibold text-blue-700">Rp {marginTotals.totalAjm.toLocaleString("id-ID")}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground pb-1 border-b border-dashed text-xs">
+                  <span>PPN 11% AJM</span>
+                  <span>Rp {marginTotals.ppnAjm.toLocaleString("id-ID")}</span>
                 </div>
 
                 {/* SISA PO */}
@@ -1016,28 +1130,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                     </div>
                   </>
 
-                {/* Fee input */}
-                <div className="pt-1 space-y-1">
-                  <Label htmlFor="fee" className="text-[10px] text-muted-foreground uppercase font-semibold">
-                    Fee / Biaya Tambahan (Rp)
-                    <span className="ml-1 font-normal normal-case">(dikurangi dari margin)</span>
-                  </Label>
-                  {form.status === "pengiriman" || form.status === "selesai" || form.status === "batal" ? (
-                    <div className="h-8 text-xs flex items-center px-2 bg-muted/20 border border-slate-100 rounded-md font-semibold">
-                      Rp {Number(form.fee || 0).toLocaleString("id-ID")}
-                    </div>
-                  ) : (
-                    <Input
-                      id="fee"
-                      type="number"
-                      min="0"
-                      value={form.fee || ""}
-                      onChange={(e) => setForm({ ...form, fee: e.target.value ? Number(e.target.value) : 0 })}
-                      className="h-8 text-xs"
-                      placeholder="Rp 0"
-                    />
-                  )}
-                </div>
+
 
                 {/* Net margin */}
                   <div className={`flex justify-between border-t pt-2 font-bold ${
@@ -1051,53 +1144,17 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
 
             {/* Actions */}
             <div className="space-y-2">
-              {/* Sales create mode: two buttons — Penawaran (secondary) vs Tagihan/Invoice (primary) */}
-              {!invoice && isSales && (
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    type="button"
-                    disabled={isSaving}
-                    variant="outline"
-                    onClick={() => saveWithStatus("penawaran")}
-                    className="h-10 font-bold text-xs border-slate-400 text-slate-600 hover:bg-slate-50"
-                  >
-                    <Save className="mr-1.5 h-3.5 w-3.5" />
-                    {isSaving ? "..." : "Penawaran"}
-                  </Button>
-                  <Button
-                    type="button"
-                    disabled={isSaving}
-                    onClick={() => saveWithStatus("tagihan")}
-                    className="h-10 font-bold text-xs bg-primary text-primary-foreground hover:bg-primary/90"
-                  >
-                    <Save className="mr-1.5 h-3.5 w-3.5" />
-                    {isSaving ? "..." : "Buat Invoice"}
-                  </Button>
-                </div>
-              )}
-              {/* Admin create or any edit mode */}
-              {!isSales && !invoice && (
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    type="button"
-                    disabled={isSaving}
-                    variant="outline"
-                    onClick={() => saveWithStatus("penawaran")}
-                    className="h-10 font-bold text-xs border-slate-400 text-slate-600 hover:bg-slate-50"
-                  >
-                    <Save className="mr-1.5 h-3.5 w-3.5" />
-                    {isSaving ? "..." : "Penawaran"}
-                  </Button>
-                  <Button
-                    type="button"
-                    disabled={isSaving}
-                    onClick={() => saveWithStatus("tagihan")}
-                    className="h-10 font-bold text-xs bg-primary text-primary-foreground hover:bg-primary/90"
-                  >
-                    <Save className="mr-1.5 h-3.5 w-3.5" />
-                    {isSaving ? "..." : "Buat Invoice"}
-                  </Button>
-                </div>
+              {/* Create mode: single "Order" button */}
+              {!invoice && (
+                <Button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => saveWithStatus("tagihan")}
+                  className="w-full h-10 font-bold text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  <Save className="mr-1.5 h-4 w-4" />
+                  {isSaving ? "Menyimpan..." : "Order"}
+                </Button>
               )}
               {/* Edit mode */}
               {invoice && (

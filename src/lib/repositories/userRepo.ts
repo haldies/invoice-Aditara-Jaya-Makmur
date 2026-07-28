@@ -13,9 +13,9 @@ export async function listUsers(actor: RequestUser): Promise<AppUser[]> {
     select: {
       id: true,
       email: true,
+      name: true,
       phone: true,
       role: true,
-      commission_rate: true,
       created_at: true,
     },
   });
@@ -57,9 +57,9 @@ export async function updateUserRole(
     select: {
       id: true,
       email: true,
+      name: true,
       phone: true,
       role: true,
-      commission_rate: true,
       created_at: true,
     },
   });
@@ -67,27 +67,4 @@ export async function updateUserRole(
   return { ...updated, role: updated.role as AppRole };
 }
 
-export async function updateUserCommissionRate(
-  actor: RequestUser,
-  targetUserId: string,
-  newRate: number
-): Promise<AppUser | null> {
-  if (actor.role !== "owner" && actor.role !== "admin" && actor.role !== "manager") {
-    throw new Error("Unauthorized");
-  }
 
-  const updated = await prisma.appUser.update({
-    where: { id: targetUserId },
-    data: { commission_rate: newRate },
-    select: {
-      id: true,
-      email: true,
-      phone: true,
-      role: true,
-      commission_rate: true,
-      created_at: true,
-    },
-  });
-
-  return { ...updated, role: updated.role as AppRole };
-}

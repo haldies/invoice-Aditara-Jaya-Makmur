@@ -1,7 +1,7 @@
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 import { Invoice } from "@/types/invoice";
 import { CompanyProfile } from "@/lib/companyProfile";
-import { getUnit } from "@/lib/pdfUtils";
+import { getUnit, formatQuantity, formatClientAddress, generatePdfDocumentNumber } from "@/lib/pdfUtils";
 
 const styles = StyleSheet.create({
   page: {
@@ -253,7 +253,7 @@ export const TemplateModern = ({ invoice, company, includePpn }: Props) => {
           <View style={styles.infoLeft}>
             <Text style={styles.infoHeading}>CUSTOMER :</Text>
             <Text>{invoice.client.name}</Text>
-            {invoice.client.address && <Text>{invoice.client.address}</Text>}
+            {formatClientAddress(invoice.client) && <Text>{formatClientAddress(invoice.client)}</Text>}
           </View>
           <View style={styles.infoRight}>
             <Text style={styles.infoHeading}>DETAIL :</Text>
@@ -265,7 +265,7 @@ export const TemplateModern = ({ invoice, company, includePpn }: Props) => {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Nomor</Text>
               <Text style={styles.infoColon}>:</Text>
-              <Text style={styles.infoValue}>{invoice.invoice_number}</Text>
+              <Text style={styles.infoValue}>{generatePdfDocumentNumber("invoice", invoice)}</Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Delivery</Text>
@@ -275,7 +275,11 @@ export const TemplateModern = ({ invoice, company, includePpn }: Props) => {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Time</Text>
               <Text style={styles.infoColon}>:</Text>
-              <Text style={styles.infoValue}>-</Text>
+              <Text style={styles.infoValue}>
+                {invoice.due_date && invoice.due_date.includes("T") 
+                  ? invoice.due_date.split("T")[1].substring(0, 5) 
+                  : ""}
+              </Text>
             </View>
           </View>
         </View>
@@ -324,11 +328,13 @@ export const TemplateModern = ({ invoice, company, includePpn }: Props) => {
             );
           })}
 
-          {/* Summary */}
-          <View style={styles.tr}>
-            <View style={{ width: "65%" }} />
-            <View style={styles.summaryLabelCell}><Text>SUBTOTAL</Text></View>
-            <View style={styles.summaryValueCell}>
+        </View>
+
+        {/* Summary */}
+        <View style={{ flexDirection: "column", alignItems: "flex-end", width: "100%" }}>
+          <View style={{ flexDirection: "row", width: "35%" }}>
+            <View style={[styles.summaryLabelCell, { width: "50%" }]}><Text>SUBTOTAL</Text></View>
+            <View style={[styles.summaryValueCell, { width: "50%" }]}>
               <View style={styles.currencyCell}>
                 <Text style={styles.currencyRp}>Rp</Text>
                 <Text style={styles.currencyVal}>{fmtAmt(subtotal)}</Text>
@@ -336,10 +342,9 @@ export const TemplateModern = ({ invoice, company, includePpn }: Props) => {
             </View>
           </View>
           
-          <View style={styles.tr}>
-            <View style={{ width: "65%" }} />
-            <View style={styles.summaryLabelCell}><Text>{includePpn ? "PPN 11%" : "PAJAK"}</Text></View>
-            <View style={styles.summaryValueCell}>
+          <View style={{ flexDirection: "row", width: "35%" }}>
+            <View style={[styles.summaryLabelCell, { width: "50%" }]}><Text>{includePpn ? "PPN 11%" : "PAJAK"}</Text></View>
+            <View style={[styles.summaryValueCell, { width: "50%" }]}>
               <View style={styles.currencyCell}>
                 <Text style={styles.currencyRp}>Rp</Text>
                 <Text style={styles.currencyVal}>{fmtAmt(tax)}</Text>
@@ -347,10 +352,9 @@ export const TemplateModern = ({ invoice, company, includePpn }: Props) => {
             </View>
           </View>
 
-          <View style={styles.tr}>
-            <View style={{ width: "65%" }} />
-            <View style={styles.summaryLabelCell}><Text>TOTAL</Text></View>
-            <View style={styles.summaryValueCell}>
+          <View style={{ flexDirection: "row", width: "35%" }}>
+            <View style={[styles.summaryLabelCell, { width: "50%" }]}><Text>TOTAL</Text></View>
+            <View style={[styles.summaryValueCell, { width: "50%" }]}>
               <View style={styles.currencyCell}>
                 <Text style={styles.currencyRp}>Rp</Text>
                 <Text style={styles.currencyVal}>{fmtAmt(total)}</Text>
@@ -362,30 +366,18 @@ export const TemplateModern = ({ invoice, company, includePpn }: Props) => {
         {/* Footer / Notes */}
         <View style={styles.footerBlock}>
           <View style={styles.footerLeft}>
-            <View style={styles.footerListRow}>
-              <Text style={styles.footerListNum}>1.</Text>
-              <Text style={styles.footerListLabel}>Harga</Text>
-              <Text style={styles.footerListColon}>:</Text>
-              <Text style={styles.footerListVal}>-</Text>
-            </View>
-            <View style={styles.footerListRow}>
-              <Text style={styles.footerListNum}>2.</Text>
-              <Text style={styles.footerListLabel}>Pembayaran</Text>
-              <Text style={styles.footerListColon}>:</Text>
-              <Text style={styles.footerListVal}>{paymentText}</Text>
-            </View>
-            <View style={styles.footerListRow}>
-              <Text style={styles.footerListNum}>3.</Text>
-              <Text style={styles.footerListLabel}>Mohon</Text>
-              <Text style={styles.footerListColon}>:</Text>
-              <Text style={styles.footerListVal}>Konfirmasi</Text>
-            </View>
-            <View style={styles.footerListRow}>
-              <Text style={styles.footerListNum}>4.</Text>
-              <Text style={styles.footerListLabel}>Keterangan</Text>
-              <Text style={styles.footerListColon}>:</Text>
-              <Text style={styles.footerListVal}>{invoice.notes || "-"}</Text>
-            </View>
+            {[
+              { label: "Pembayaran", val: paymentText },
+              { label: "Mohon", val: "Konfirmasi" },
+              ...(invoice.notes ? [{ label: "Keterangan", val: invoice.notes }] : []),
+            ].map((item, idx) => (
+              <View key={idx} style={styles.footerListRow}>
+                <Text style={styles.footerListNum}>{idx + 1}.</Text>
+                <Text style={styles.footerListLabel}>{item.label}</Text>
+                <Text style={styles.footerListColon}>:</Text>
+                <Text style={styles.footerListVal}>{item.val}</Text>
+              </View>
+            ))}
           </View>
           
           <View style={styles.footerRight}>

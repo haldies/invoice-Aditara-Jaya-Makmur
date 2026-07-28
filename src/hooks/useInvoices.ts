@@ -25,7 +25,8 @@ export function useInvoices(params?: Record<string, any>) {
     isValidating,
     mutate,
   } = useSWR<PaginatedResult<Invoice> | Invoice[]>(SWR_KEY, swrFetcher, {
-    revalidateOnFocus: false,
+    revalidateOnFocus: true,
+    refreshInterval: 10000, // Auto-refresh setiap 10 detik
   });
 
   const invoices = data && "data" in data ? data.data : (Array.isArray(data) ? data : []);

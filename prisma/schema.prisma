@@ -14,8 +14,8 @@ model AppUser {
   password_hash String
   password_salt String
   role            String    @default("user")
+  name            String?
   phone           String?
-  commission_rate Float     @default(5000) // Default komisi per m3 untuk sales ini
   created_at      String
   updated_at      String
   sessions      AppSession[]
@@ -24,6 +24,7 @@ model AppUser {
   invoices      Invoice[]
   templates     InvoiceTemplate[]
   preset_items  InvoicePresetItem[]
+  shipping_rates ShippingRate[]
 
   @@map("app_users")
 }
@@ -48,6 +49,10 @@ model Client {
   phone      String?
   company    String?
   address    String?
+  province   String?
+  city       String?
+  district   String?
+  postal_code String?
   notes      String?
   created_at String
   updated_at String
@@ -71,8 +76,10 @@ model Invoice {
   subtotal       Float         @default(0)
   discount       Float         @default(0)
   tax            Float         @default(0)
+  shipping_fee   Float         @default(0)
   fee            Float         @default(0)  // Fee/biaya tambahan yang dibebankan (dikurangi dari margin, bukan dari total customer)
   total          Float         @default(0)
+  amount_paid    Float         @default(0)
   notes          String?
   terms          String?
   template_id    String?       @db.Uuid
@@ -100,7 +107,6 @@ model InvoiceItem {
   unit_price      Float   @default(0)
   ajm_price       Float?  // Harga net perusahaan untuk hitung fee eksternal
   buy_in_price    Float   @default(0)
-  commission_rate Float   @default(5000) // Komisi per m3 khusus untuk invoice ini
   line_total      Float   @default(0)
   sort_order      Int     @default(0)
   invoice         Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
@@ -143,6 +149,7 @@ model InvoicePresetItem {
   description  String   @default("")
   unit_price   Float    @default(0)
   buy_in_price Float    @default(0)  // Harga beli ke supplier (HPP), diisi admin
+  ajm_price    Float    @default(0)  // Harga fix dari AJM
   tax_rate     Float    @default(0)
   created_at   String
   updated_at   String
@@ -150,4 +157,19 @@ model InvoicePresetItem {
 
   @@index([user_id])
   @@map("invoice_preset_items")
+}
+
+model ShippingRate {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  area       String
+  price      Float    @default(0)
+  is_free    Boolean  @default(false)
+  notes      String?
+  created_at String
+  updated_at String
+  user       AppUser  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("shipping_rates")
 }

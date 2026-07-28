@@ -1,7 +1,7 @@
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 import { Invoice } from "@/types/invoice";
 import { CompanyProfile } from "@/lib/companyProfile";
-import { getUnit, formatQuantity } from "@/lib/pdfUtils";
+import { getUnit, formatQuantity, formatClientAddress } from "@/lib/pdfUtils";
 
 const styles = StyleSheet.create({
   page: {
@@ -173,7 +173,7 @@ export const TemplateCorporate = ({ invoice, company, includePpn }: Props) => {
               <Text style={styles.billLabel}>Kepada Yth.</Text>
               <Text style={styles.billName}>{invoice.client.name}</Text>
               {invoice.client.company && <Text style={styles.billDetail}>{invoice.client.company}</Text>}
-              {invoice.client.address && <Text style={styles.billDetail}>{invoice.client.address}</Text>}
+              {formatClientAddress(invoice.client) && <Text style={styles.billDetail}>{formatClientAddress(invoice.client)}</Text>}
               {invoice.client.email && <Text style={styles.billDetail}>{invoice.client.email}</Text>}
               {invoice.client.phone && <Text style={styles.billDetail}>Tel: {invoice.client.phone}</Text>}
             </View>

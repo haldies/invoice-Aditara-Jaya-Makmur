@@ -3,10 +3,13 @@
  * Review produk & HPP, cetak PO/Invoice, lanjut ke Pengiriman.
  */
 import { useState } from "react";
+import { ArrowRight, Save, ShoppingCart, FileText } from "lucide-react";
+import { PdfAction } from "@/lib/pdfExport";
+import { PdfActionButton } from "./PdfActionButton";
 import { Invoice } from "@/types/invoice";
 import { useInvoices } from "@/hooks/useInvoices";
 import { loadCompanyProfile } from "@/lib/companyProfile";
-import { fmt, fmtDate, handleDownloadPDF, calcMargin } from "./stageUtils";
+import { fmt, fmtDate, handleDownloadPDF, handlePdfAction, calcMargin } from "./stageUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,23 +27,6 @@ export function POView({ invoice, onUpdated }: Props) {
   const { updateInvoice } = useInvoices();
   const [isSaving, setIsSaving] = useState(false);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
-  const [dueDate, setDueDate] = useState<string>(
-    invoice.due_date ? new Date(invoice.due_date).toISOString().slice(0, 10) : ""
-  );
-
-  const saveDueDate = async (val: string) => {
-    setDueDate(val);
-    if (!val) return;
-    try {
-      const updated = await updateInvoice(invoice.id, { 
-        due_date: new Date(val).toISOString(), 
-        version: invoice.version 
-      } as any);
-      onUpdated(updated);
-    } catch (e: any) {
-      console.error(e);
-    }
-  };
 
   const margin = calcMargin(invoice);
   const includePpn = Math.abs((invoice.tax || 0) - invoice.subtotal * 0.11) < 100 && (invoice.tax || 0) > 0;
@@ -49,9 +35,6 @@ export function POView({ invoice, onUpdated }: Props) {
     setIsSaving(true);
     try {
       const payload: any = { status: status as any, version: invoice.version };
-      if (dueDate) {
-        payload.due_date = new Date(dueDate).toISOString();
-      }
       const updated = await updateInvoice(invoice.id, payload);
       onUpdated(updated);
     } catch (e: any) {
@@ -61,9 +44,9 @@ export function POView({ invoice, onUpdated }: Props) {
     }
   };
 
-  const download = (type: "po" | "invoice") => {
+  const download = (type: "invoice" | "po", action: PdfAction) => {
     const company = loadCompanyProfile();
-    handleDownloadPDF(type, invoice, company, includePpn, setIsPdfLoading);
+    handlePdfAction(action, type, invoice, company, includePpn, setIsPdfLoading);
   };
 
   return (
@@ -71,30 +54,30 @@ export function POView({ invoice, onUpdated }: Props) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-bold mb-2">Purchase Order</span>
+          <span className="inline-flex items-center rounded-full bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 text-xs font-bold mb-2">Purchase Order</span>
           <h1 className="text-2xl font-black text-foreground">{invoice.invoice_number}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             <span className="font-semibold text-foreground">{invoice.client?.name}</span>
             {invoice.client?.phone && <span> · {invoice.client.phone}</span>}
           </p>
           {invoice.notes && <p className="text-xs text-muted-foreground mt-0.5">Lokasi: {invoice.notes}</p>}
-          <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-            <Label className="text-xs font-bold text-muted-foreground">Tgl Pengiriman:</Label>
-            <Input 
-              type="date" 
-              value={dueDate} 
-              onChange={(e) => saveDueDate(e.target.value)} 
-              className="h-8 text-xs w-full sm:w-40" 
-            />
-          </div>
+          {invoice.due_date && <p className="text-xs text-muted-foreground mt-0.5">Tgl Pengiriman: {fmtDate(invoice.due_date)}</p>}
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-2 sm:mt-0 shrink-0">
-          <Button onClick={() => download("po")} disabled={isPdfLoading} variant="outline" size="sm" className="h-9 w-full sm:w-auto text-xs font-bold gap-1.5 border-primary text-primary hover:bg-primary/10">
-            Cetak PO
-          </Button>
-          <Button onClick={() => download("invoice")} disabled={isPdfLoading} variant="outline" size="sm" className="h-9 w-full sm:w-auto text-xs font-bold gap-1.5 border-primary text-primary hover:bg-primary/10">
-            Cetak Invoice
-          </Button>
+          <PdfActionButton
+            label="Cetak PO"
+            icon={ShoppingCart}
+            isLoading={isPdfLoading}
+            onAction={(action) => download("po", action)}
+            className="h-9 w-full sm:w-auto text-xs font-bold gap-1.5 border-primary text-primary hover:bg-primary/10"
+          />
+          <PdfActionButton
+            label="Cetak Invoice"
+            icon={FileText}
+            isLoading={isPdfLoading}
+            onAction={(action) => download("invoice", action)}
+            className="h-9 w-full sm:w-auto text-xs font-bold gap-1.5 border-primary text-primary hover:bg-primary/10"
+          />
         </div>
       </div>
 
@@ -141,6 +124,11 @@ export function POView({ invoice, onUpdated }: Props) {
               <span>PPN 11%</span><span className="font-semibold">+ {fmt(invoice.tax)}</span>
             </div>
           )}
+          {(invoice.shipping_fee || 0) > 0 && (
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Ongkos Kirim</span><span className="font-semibold">+ {fmt(invoice.shipping_fee)}</span>
+            </div>
+          )}
           <div className="flex justify-between items-center pt-2 border-t font-extrabold">
             <span>Total</span><span className="text-lg">{fmt(invoice.total)}</span>
           </div>
@@ -150,7 +138,7 @@ export function POView({ invoice, onUpdated }: Props) {
         <div className="bg-slate-50 dark:bg-slate-900/30 border rounded-xl p-4 space-y-2 text-xs">
           <p className="font-bold text-sm">Margin Internal</p>
           <div className="flex justify-between text-muted-foreground">
-            <span>Total HPP</span><span className="font-semibold text-foreground">{fmt(margin.totalHpp)}</span>
+            <span>Total HPP</span><span className="font-semibold text-foreground">{fmt(margin.hppDPP)}</span>
           </div>
           <div className="flex justify-between text-muted-foreground">
             <span>+ PPN Supplier</span><span className="font-semibold text-foreground">{fmt(margin.ppnSupplier)}</span>

@@ -27,6 +27,7 @@ const trackerMenuItems: Array<{ title: string; url: string; icon: MenuIcon, role
   { title: "Daftar Transaksi", url: "/tracker/invoices", icon: ReceiptText as MenuIcon, roles: ["owner", "admin", "manager", "user", "sales"] },
   { title: "Buat Transaksi", url: "/tracker/invoices/new", icon: FilePlus2 as MenuIcon, roles: ["owner", "admin", "manager", "user", "sales"] },
   { title: "Produk", url: "/tracker/presets", icon: Tag as MenuIcon, roles: ["owner", "admin", "manager"] },
+  { title: "Pengguna", url: "/tracker/users", icon: Users as MenuIcon, roles: ["owner", "admin", "manager"] },
   { title: "Settings", url: "/settings", icon: Settings as MenuIcon, roles: ["owner", "admin", "manager", "user", "sales"] },
 ];
 const heavyPrefetchRoutes = new Set(["/tracker/invoices/new", "/tracker/templates/new", "/tracker/presets"]);

@@ -8,16 +8,16 @@ export function useUsers() {
     swrFetcher
   );
 
-  const updateUserRole = async (id: string, newRole: AppRole) => {
-    const res = await fetch(`/api/users/${id}/role`, {
+  const updateUser = async (id: string, data: Partial<AppUser>) => {
+    const res = await fetch(`/api/users/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: newRole }),
+      body: JSON.stringify(data),
     });
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.error || "Gagal mengubah role pengguna");
+      throw new Error(errorData.error || "Gagal mengupdate pengguna");
     }
 
     const updatedUser = await res.json();
@@ -25,28 +25,12 @@ export function useUsers() {
     return updatedUser;
   };
 
-  const updateUserCommissionRate = async (id: string, newRate: number) => {
-    const res = await fetch(`/api/users/${id}/commission`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ commission_rate: newRate }),
-    });
 
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.error || "Gagal mengubah tarif komisi");
-    }
-
-    const updatedUser = await res.json();
-    mutate();
-    return updatedUser;
-  };
 
   return {
     users: data?.users ?? [],
     isLoading,
     isError: error,
-    updateUserRole,
-    updateUserCommissionRate,
+    updateUser,
   };
 }

@@ -157,11 +157,11 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
 
           <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Username</Label>
               <Input
                 id="email"
-                type="email"
-                autoComplete="email"
+                type="text"
+                placeholder="Masukkan username"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 required

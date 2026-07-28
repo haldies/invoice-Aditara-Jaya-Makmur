@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Invoice } from "@/types/invoice";
 import { loadCompanyProfile } from "@/lib/companyProfile";
-import { fmt, fmtDate, handleDownloadPDF } from "./stageUtils";
+import { fmt, fmtDate, handleDownloadPDF, handlePdfAction } from "./stageUtils";
 import { Button } from "@/components/ui/button";
-import { Download, FileText } from "lucide-react";
+import { FileText, Receipt, Package, Truck, CheckCircle, AlertTriangle } from "lucide-react";
+import { PdfAction } from "@/lib/pdfExport";
+import { PdfActionButton } from "./PdfActionButton";
 import { INVOICE_STATUS_CONFIG } from "@/types/invoice";
 
 interface Props {
@@ -18,9 +20,10 @@ export function SalesReadOnlyView({ invoice }: Props) {
 
   const subtotal = invoice.items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
 
-  const download = (type: "quotation" | "invoice") => {
+  const download = (type: "invoice" | "quotation", action: PdfAction) => {
     const company = loadCompanyProfile();
-    handleDownloadPDF(type, invoice, company, includePpn, setIsPdfLoading);
+    const includePpn = Math.abs((invoice.tax || 0) - invoice.subtotal * 0.11) < 100 && (invoice.tax || 0) > 0;
+    handlePdfAction(action, type, invoice, company, includePpn, setIsPdfLoading);
   };
 
   return (
@@ -123,21 +126,21 @@ export function SalesReadOnlyView({ invoice }: Props) {
 
       {/* Actions */}
       <div className="mt-6 flex flex-col sm:flex-row gap-2">
-        <Button
-          onClick={() => download("quotation")}
-          disabled={isPdfLoading}
+        <PdfActionButton
+          label="Cetak Penawaran"
+          icon={FileText}
+          isLoading={isPdfLoading}
+          onAction={(action) => download("quotation", action)}
+          className="flex-1 h-12 font-bold text-sm gap-1.5"
           variant="outline"
+        />
+        <PdfActionButton
+          label="Cetak Invoice"
+          icon={Receipt}
+          isLoading={isPdfLoading}
+          onAction={(action) => download("invoice", action)}
           className="flex-1 h-12 font-bold text-sm gap-1.5"
-        >
-          <Download className="h-4 w-4" /> Cetak Penawaran
-        </Button>
-        <Button
-          onClick={() => download("invoice")}
-          disabled={isPdfLoading}
-          className="flex-1 h-12 font-bold text-sm gap-1.5"
-        >
-          <FileText className="h-4 w-4" /> Cetak Invoice
-        </Button>
+        />
       </div>
     </div>
   );

@@ -8,7 +8,7 @@ import { Invoice, InvoiceItemInput } from "@/types/invoice";
 import { useInvoices } from "@/hooks/useInvoices";
 import { usePresetItems } from "@/hooks/usePresetItems";
 import { loadCompanyProfile } from "@/lib/companyProfile";
-import { fmt, fmtDate, handleDownloadPDF } from "./stageUtils";
+import { fmt, fmtDate, handleDownloadPDF, handlePdfAction } from "./stageUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Save, Download, FileText, ArrowRight, ChevronsUpDown, Search, Check } from "lucide-react";
+import { Plus, Trash2, ArrowRight, Save, FileText, ChevronsUpDown, Search, Check } from "lucide-react";
+import { PdfAction } from "@/lib/pdfExport";
+import { PdfActionButton } from "./PdfActionButton";
 
 interface Props {
   invoice: Invoice;
@@ -81,7 +83,6 @@ export function AdminPenawaranView({ invoice, onUpdated }: Props) {
       actual_quantity: i.actual_quantity,
       unit_price: i.unit_price,
       buy_in_price: i.buy_in_price || 0,
-      commission_rate: i.commission_rate || 5000,
       sort_order: i.sort_order,
     }))
   );
@@ -110,12 +111,12 @@ export function AdminPenawaranView({ invoice, onUpdated }: Props) {
     const desc = p.name + (p.description ? ` - ${p.description}` : "");
     setItems((prev) => [
       ...prev,
-      { description: desc, quantity: 1, actual_quantity: null, unit_price: 0, buy_in_price: 0, commission_rate: 5000, sort_order: prev.length },
+      { description: desc, quantity: 1, actual_quantity: null, unit_price: 0, buy_in_price: 0, sort_order: prev.length },
     ]);
   };
 
   const addBlank = () =>
-    setItems((prev) => [...prev, { description: "", quantity: 1, actual_quantity: null, unit_price: 0, buy_in_price: 0, commission_rate: 5000, sort_order: prev.length }]);
+    setItems((prev) => [...prev, { description: "", quantity: 1, actual_quantity: null, unit_price: 0, buy_in_price: 0, sort_order: prev.length }]);
 
   const save = async (nextStatus?: string) => {
     setIsSaving(true);
@@ -143,7 +144,7 @@ export function AdminPenawaranView({ invoice, onUpdated }: Props) {
     }
   };
 
-  const downloadPdf = (type: "quotation" | "invoice") => {
+  const downloadPdf = (type: "quotation" | "invoice", action: PdfAction) => {
     const company = loadCompanyProfile();
     const updatedInvoice: Invoice = {
       ...invoice,
@@ -160,12 +161,11 @@ export function AdminPenawaranView({ invoice, onUpdated }: Props) {
         actual_quantity: null,
         unit_price: Number(item.unit_price || 0),
         buy_in_price: Number(item.buy_in_price || 0),
-        commission_rate: Number(item.commission_rate || 5000),
         line_total: Number(item.quantity || 0) * Number(item.unit_price || 0),
         sort_order: idx,
       })),
     };
-    handleDownloadPDF(type, updatedInvoice, company, includePpn, setIsPdfLoading);
+    handlePdfAction(action, type, updatedInvoice, company, includePpn, setIsPdfLoading);
   };
 
   return (
@@ -181,12 +181,20 @@ export function AdminPenawaranView({ invoice, onUpdated }: Props) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => downloadPdf("quotation")} disabled={isPdfLoading} variant="outline" size="sm" className="h-9 text-xs font-bold gap-1.5">
-            <Download className="h-3.5 w-3.5" /> Cetak Penawaran
-          </Button>
-          <Button onClick={() => downloadPdf("invoice")} disabled={isPdfLoading} variant="outline" size="sm" className="h-9 text-xs font-bold gap-1.5 border-primary text-primary hover:bg-primary/10">
-            <FileText className="h-3.5 w-3.5" /> Cetak Invoice
-          </Button>
+          <PdfActionButton
+            label="Cetak Penawaran"
+            icon={FileText}
+            isLoading={isPdfLoading}
+            onAction={(action) => downloadPdf("quotation", action)}
+            className="h-9 text-xs font-bold gap-1.5"
+          />
+          <PdfActionButton
+            label="Cetak Invoice"
+            icon={FileText}
+            isLoading={isPdfLoading}
+            onAction={(action) => downloadPdf("invoice", action)}
+            className="h-9 text-xs font-bold gap-1.5 border-primary text-primary hover:bg-primary/10"
+          />
         </div>
       </div>
 

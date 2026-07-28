@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createAppSession, verifyPassword } from "@/lib/authLocal";
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string().min(3),
   password: z.string(),
 });
 

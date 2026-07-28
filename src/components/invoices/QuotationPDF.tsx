@@ -1,7 +1,7 @@
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 import { Invoice } from "@/types/invoice";
 import { CompanyProfile } from "@/lib/companyProfile";
-import { getUnit, formatQuantity } from "@/lib/pdfUtils";
+import { getUnit, formatQuantity, formatClientAddress } from "@/lib/pdfUtils";
 
 const styles = StyleSheet.create({
   page: {
@@ -251,8 +251,8 @@ export const QuotationPDF = ({ invoice, company, includePpn = false }: Props) =>
         <View style={styles.recipientBlock}>
           <Text style={styles.recipientLabel}>Kepada Yth.</Text>
           <Text>{invoice.client.company || invoice.client.name}</Text>
-          {invoice.client.address ? (
-            <Text>{invoice.client.address}</Text>
+          {formatClientAddress(invoice.client) ? (
+            <Text>{formatClientAddress(invoice.client)}</Text>
           ) : null}
         </View>
 

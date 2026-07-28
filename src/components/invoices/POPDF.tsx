@@ -1,7 +1,7 @@
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 import { Invoice } from "@/types/invoice";
 import { CompanyProfile } from "@/lib/companyProfile";
-import { getUnit, formatQuantity } from "@/lib/pdfUtils";
+import { getUnit, formatQuantity, formatClientAddress, generatePdfDocumentNumber } from "@/lib/pdfUtils";
 
 const styles = StyleSheet.create({
   page: {
@@ -326,7 +326,7 @@ export const POPDF = ({ invoice, company, includePpn }: Props) => {
               <Text style={styles.metaLabel}>No.</Text>
               <Text style={styles.metaColon}>:</Text>
               <Text style={styles.metaValue}>
-                {invoice.invoice_number.replace("INV", "PO")}
+                {generatePdfDocumentNumber("po", invoice)}
               </Text>
             </View>
             {invoice.due_date && (
@@ -351,7 +351,7 @@ export const POPDF = ({ invoice, company, includePpn }: Props) => {
             <View style={{ marginTop: 6, borderTopWidth: 0.5, borderTopColor: "#d0d0d0", paddingTop: 4 }}>
               <Text style={[styles.recipientTitle, { fontSize: 8 }]}>Kirim Ke (Client) :</Text>
               <Text style={{ fontSize: 9, fontFamily: "Times-Bold" }}>{invoice.client.company || invoice.client.name}</Text>
-              <Text style={{ fontSize: 8.5, color: "#333", marginTop: 1 }}>{invoice.client.address}</Text>
+              <Text style={{ fontSize: 8.5, color: "#333", marginTop: 1 }}>{formatClientAddress(invoice.client)}</Text>
             </View>
           </View>
         </View>

@@ -6,13 +6,15 @@ import { useState } from "react";
 import { Invoice } from "@/types/invoice";
 import { useInvoices } from "@/hooks/useInvoices";
 import { loadCompanyProfile } from "@/lib/companyProfile";
-import { fmt, fmtDate, handleDownloadPDF, calcMargin } from "./stageUtils";
+import { fmt, fmtDate, handleDownloadPDF, handlePdfAction, calcMargin } from "./stageUtils";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Download, FileText, Receipt, CheckCircle, XCircle } from "lucide-react";
+import { PdfAction } from "@/lib/pdfExport";
+import { PdfActionButton } from "./PdfActionButton";
 
 interface Props {
   invoice: Invoice;
@@ -30,9 +32,9 @@ export function SelesaiView({ invoice, onUpdated, isSales = false }: Props) {
   const isSelesai = invoice.status === "selesai";
   const isBatal = invoice.status === "batal";
 
-  const download = (type: "invoice" | "receipt") => {
+  const handlePdf = (type: "invoice" | "receipt", action: PdfAction) => {
     const company = loadCompanyProfile();
-    handleDownloadPDF(type, invoice, company, includePpn, setIsPdfLoading);
+    handlePdfAction(action, type, invoice, company, includePpn, setIsPdfLoading);
   };
 
   const cancel = async () => {
@@ -50,7 +52,7 @@ export function SelesaiView({ invoice, onUpdated, isSales = false }: Props) {
   return (
     <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-6">
       {/* Status Banner */}
-      <div className={`flex items-center gap-3 rounded-2xl px-5 py-4 border ${isSelesai ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
+      <div className={`flex items-center gap-4 rounded-2xl px-6 py-5 ${isSelesai ? "bg-emerald-50/80" : "bg-red-50/80"}`}>
         {isSelesai
           ? <CheckCircle className="h-8 w-8 text-emerald-600 shrink-0" />
           : <XCircle className="h-8 w-8 text-red-500 shrink-0" />}
@@ -67,22 +69,22 @@ export function SelesaiView({ invoice, onUpdated, isSales = false }: Props) {
       {/* Info Cards */}
       <div className="grid sm:grid-cols-2 gap-4">
         {/* Client */}
-        <div className="bg-card border rounded-xl p-4 space-y-2">
-          <h3 className="font-bold text-sm">Data Pelanggan</h3>
-          <p className="font-semibold text-foreground">{invoice.client?.name}</p>
-          {invoice.client?.phone && <p className="text-xs text-muted-foreground">{invoice.client.phone}</p>}
-          {invoice.client?.email && <p className="text-xs text-muted-foreground">{invoice.client.email}</p>}
-          {invoice.client?.address && <p className="text-xs text-muted-foreground">{invoice.client.address}</p>}
+        <div className="bg-slate-50/50 rounded-2xl p-5 space-y-2">
+          <h3 className="font-bold text-sm text-slate-700">Data Pelanggan</h3>
+          <p className="font-bold text-foreground text-base">{invoice.client?.name}</p>
+          {invoice.client?.phone && <p className="text-xs text-slate-500">{invoice.client.phone}</p>}
+          {invoice.client?.email && <p className="text-xs text-slate-500">{invoice.client.email}</p>}
+          {invoice.client?.address && <p className="text-xs text-slate-500">{invoice.client.address}</p>}
           {invoice.notes && (
-            <div className="pt-2 border-t">
-              <p className="text-xs text-muted-foreground">Lokasi Proyek: {invoice.notes}</p>
+            <div className="pt-3 mt-1 border-t border-slate-100">
+              <p className="text-xs text-slate-500">Lokasi Proyek: <span className="font-medium text-slate-700">{invoice.notes}</span></p>
             </div>
           )}
         </div>
 
         {/* Financial Summary */}
-        <div className="bg-card border rounded-xl p-4 space-y-2 text-sm">
-          <h3 className="font-bold">Ringkasan Nilai</h3>
+        <div className="bg-slate-50/50 rounded-2xl p-5 space-y-2 text-sm">
+          <h3 className="font-bold text-slate-700">Ringkasan Nilai</h3>
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Subtotal</span><span className="font-semibold text-foreground">{fmt(invoice.subtotal)}</span>
           </div>
@@ -96,6 +98,10 @@ export function SelesaiView({ invoice, onUpdated, isSales = false }: Props) {
               <span>PPN 11%</span><span className="font-semibold">+ {fmt(invoice.tax)}</span>
             </div>
           )}
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>Ongkos Kirim</span>
+            <span className="font-semibold">{(invoice.shipping_fee || 0) > 0 ? `+ ${fmt(invoice.shipping_fee)}` : "Rp 0"}</span>
+          </div>
           <div className="flex justify-between items-center pt-2 border-t font-extrabold">
             <span>Total</span><span className="text-lg">{fmt(invoice.total)}</span>
           </div>
@@ -103,11 +109,11 @@ export function SelesaiView({ invoice, onUpdated, isSales = false }: Props) {
       </div>
 
       {/* Products */}
-      <div className="bg-card border rounded-xl overflow-hidden">
-        <div className="px-4 py-3 bg-slate-50 border-b">
-          <h2 className="font-bold text-sm">Rincian Produk</h2>
+      <div className="bg-slate-50/50 rounded-2xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100">
+          <h2 className="font-bold text-sm text-slate-700">Rincian Produk</h2>
         </div>
-        <div className="divide-y">
+        <div className="divide-y divide-slate-100">
           {invoice.items.map((item, idx) => {
             const billedQty = item.actual_quantity != null ? item.actual_quantity : item.quantity;
             return (
@@ -135,26 +141,63 @@ export function SelesaiView({ invoice, onUpdated, isSales = false }: Props) {
 
       {/* Margin (admin only) */}
       {!isSales && (
-        <div className="bg-slate-50 dark:bg-slate-900/30 border rounded-xl p-4 space-y-2 text-xs">
-          <p className="font-bold text-sm">Margin Final</p>
-          {margin.totalEksternalFee > 0 && (
-            <div className="flex justify-between text-red-600">
-              <span>Fee Eksternal (Komisi)</span><span>- {fmt(margin.totalEksternalFee)}</span>
-            </div>
-          )}
-          <div className="flex justify-between text-muted-foreground">
-            <span>Total AJM</span><span className="font-semibold text-blue-700">{fmt(margin.totalAjm)}</span>
+        <div className="bg-slate-50/50 rounded-2xl p-5 space-y-5">
+          <p className="font-bold text-sm text-slate-700">Detail Perhitungan Margin</p>
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-xs text-right min-w-[350px]">
+              <thead className="text-slate-500 border-b border-slate-200">
+                <tr>
+                  <th className="py-2 px-2 text-left font-medium">Komponen</th>
+                  <th className="py-2 px-2 font-medium">DPP</th>
+                  <th className="py-2 px-2 font-medium">PPN 11%</th>
+                  <th className="py-2 px-2 font-medium">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                <tr>
+                  <td className="py-2.5 px-2 text-left font-medium text-slate-600">Harga Jual</td>
+                  <td className="py-2.5 px-2 text-slate-600">{fmt(margin.dealDPP)}</td>
+                  <td className="py-2.5 px-2 text-slate-600">{fmt(margin.dealPPN)}</td>
+                  <td className="py-2.5 px-2 font-bold text-emerald-600">{fmt(margin.dealTotal)}</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-2 text-left font-medium text-slate-600">Harga Dasar</td>
+                  <td className="py-2.5 px-2 text-slate-600">{fmt(margin.ajmDPP)}</td>
+                  <td className="py-2.5 px-2 text-slate-600">{fmt(margin.ajmPPN)}</td>
+                  <td className="py-2.5 px-2 font-bold text-blue-600">{fmt(margin.ajmTotal)}</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-2 text-left font-medium text-slate-600">Harga Modal</td>
+                  <td className="py-2.5 px-2 text-slate-600">{fmt(margin.hppDPP)}</td>
+                  <td className="py-2.5 px-2 text-slate-600">{fmt(margin.hppPPN)}</td>
+                  <td className="py-2.5 px-2 font-bold text-orange-600">{fmt(margin.hppTotal)}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <div className="flex justify-between text-muted-foreground">
-            <span>HPP Terpakai</span><span className="font-semibold text-orange-700">- {fmt(margin.totalHpp)}</span>
-          </div>
-          {(invoice.fee || 0) > 0 && (
-            <div className="flex justify-between text-muted-foreground">
-              <span>Fee Lain</span><span>- {fmt(invoice.fee)}</span>
+          
+          <div className="space-y-2 pt-3 border-t border-slate-200">
+            {margin.totalEksternalFee > 0 && (
+              <div className="flex justify-between text-rose-600 text-xs">
+                <span>Fee Eksternal (Komisi)</span><span>- {fmt(margin.totalEksternalFee)}</span>
+              </div>
+            )}
+            {margin.sisaPPN > 0 && (
+              <div className="flex justify-between text-rose-600 text-xs">
+                <span>Sisa Kelebihan PPN</span><span>- {fmt(margin.sisaPPN)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-slate-600 text-xs">
+              <span>Total Margin Kotor</span><span className="font-semibold text-blue-700">{fmt(margin.grossMargin)}</span>
             </div>
-          )}
-          <div className={`flex justify-between pt-2 border-t font-bold text-sm ${margin.netMargin >= 0 ? "text-emerald-700" : "text-red-600"}`}>
-            <span>Laba Bersih</span><span>{fmt(margin.netMargin)}</span>
+            {(invoice.fee || 0) > 0 && (
+              <div className="flex justify-between text-slate-500 text-xs">
+                <span>Fee Lain / Operasional</span><span>- {fmt(invoice.fee)}</span>
+              </div>
+            )}
+            <div className={`flex justify-between pt-3 border-t border-slate-200 font-bold text-base ${margin.netMargin >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+              <span>Laba Bersih</span><span>{fmt(margin.netMargin)}</span>
+            </div>
           </div>
         </div>
       )}
@@ -162,12 +205,20 @@ export function SelesaiView({ invoice, onUpdated, isSales = false }: Props) {
       {/* PDF Actions */}
       {isSelesai && (
         <div className="flex flex-col sm:flex-row gap-3">
-          <Button onClick={() => download("receipt")} disabled={isPdfLoading} variant="outline" className="w-full sm:w-1/2 h-11 font-bold text-xs gap-1.5 border-emerald-500 text-emerald-600 hover:bg-emerald-50">
-            <Receipt className="h-4 w-4" /> Cetak Kwitansi
-          </Button>
-          <Button onClick={() => download("invoice")} disabled={isPdfLoading} variant="outline" className="w-full sm:w-1/2 h-11 font-bold text-xs gap-1.5 border-primary text-primary hover:bg-primary/10">
-            <Download className="h-4 w-4" /> Cetak Invoice
-          </Button>
+          <PdfActionButton
+            label="Kwitansi"
+            icon={Receipt}
+            isLoading={isPdfLoading}
+            onAction={(action) => handlePdf("receipt", action)}
+            className="w-full sm:w-1/2 h-11 font-bold text-xs gap-1.5 border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+          />
+          <PdfActionButton
+            label="Invoice"
+            icon={FileText}
+            isLoading={isPdfLoading}
+            onAction={(action) => handlePdf("invoice", action)}
+            className="w-full sm:w-1/2 h-11 font-bold text-xs gap-1.5 border-primary text-primary hover:bg-primary/10"
+          />
         </div>
       )}
 
