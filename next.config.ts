@@ -3,6 +3,10 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   allowedDevOrigins: ["127.0.0.1"],
+  serverExternalPackages: ["idn-area-data"],
+  outputFileTracingIncludes: {
+    "/api/**/*": ["./node_modules/idn-area-data/data/**/*"],
+  },
   async headers() {
     return [
       {
