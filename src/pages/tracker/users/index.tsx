@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { AuthGuard } from "@/components/AuthGuard";
 import { Button } from "@/components/ui/button";
@@ -7,18 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-
-type UserType = {
-  id: string;
-  email: string;
-  role: string;
-  commission_rate: number;
-  created_at: string;
-};
+import { useUsers, UserType } from "@/hooks/useUsers";
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<UserType[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { users, isLoading, createUser, updateUser, deleteUser } = useUsers();
+  
   const [isOpen, setIsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -35,50 +28,18 @@ export default function UsersPage() {
   
   const { toast } = useToast();
 
-  const fetchUsers = async () => {
-    try {
-      setIsLoading(true);
-      const res = await fetch("/api/users");
-      if (res.ok) {
-        setUsers(await res.json());
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     try {
-      const res = await fetch("/api/users/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username,
-          password,
-          role,
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast({ title: "Gagal", description: data.error || "Gagal membuat pengguna", variant: "destructive" });
-      } else {
-        toast({ title: "Berhasil", description: "Pengguna baru berhasil dibuat!" });
-        setIsOpen(false);
-        setUsername("");
-        setPassword("");
-        setRole("sales");
-        fetchUsers();
-      }
-    } catch (err) {
-      toast({ title: "Error", description: "Terjadi kesalahan sistem", variant: "destructive" });
+      await createUser({ username, password, role });
+      toast({ title: "Berhasil", description: "Pengguna baru berhasil dibuat!" });
+      setIsOpen(false);
+      setUsername("");
+      setPassword("");
+      setRole("sales");
+    } catch (err: any) {
+      toast({ title: "Gagal", description: err.message || "Terjadi kesalahan", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -97,26 +58,16 @@ export default function UsersPage() {
     if (!editUser) return;
     setIsSaving(true);
     try {
-      const res = await fetch(`/api/users/${editUser.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: editUsername,
-          password: editPassword,
-          role: editRole,
-        })
+      await updateUser(editUser.id, {
+        username: editUsername,
+        password: editPassword,
+        role: editRole,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        toast({ title: "Gagal", description: data.error || "Gagal mengubah pengguna", variant: "destructive" });
-      } else {
-        toast({ title: "Berhasil", description: "Pengguna berhasil diubah!" });
-        setIsEditOpen(false);
-        setEditUser(null);
-        fetchUsers();
-      }
-    } catch (err) {
-      toast({ title: "Error", description: "Terjadi kesalahan sistem", variant: "destructive" });
+      toast({ title: "Berhasil", description: "Pengguna berhasil diubah!" });
+      setIsEditOpen(false);
+      setEditUser(null);
+    } catch (err: any) {
+      toast({ title: "Gagal", description: err.message || "Terjadi kesalahan", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -127,16 +78,10 @@ export default function UsersPage() {
     
     setIsDeleting(id);
     try {
-      const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json();
-        toast({ title: "Gagal", description: data.error || "Gagal menghapus pengguna", variant: "destructive" });
-      } else {
-        toast({ title: "Berhasil", description: "Pengguna berhasil dihapus!" });
-        fetchUsers();
-      }
-    } catch (err) {
-      toast({ title: "Error", description: "Terjadi kesalahan sistem", variant: "destructive" });
+      await deleteUser(id);
+      toast({ title: "Berhasil", description: "Pengguna berhasil dihapus!" });
+    } catch (err: any) {
+      toast({ title: "Gagal", description: err.message || "Terjadi kesalahan", variant: "destructive" });
     } finally {
       setIsDeleting(null);
     }
@@ -274,7 +219,7 @@ export default function UsersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {isLoading ? (
+                  {isLoading && users.length === 0 ? (
                     [...Array(3)].map((_, i) => (
                       <tr key={i} className="border-b last:border-0 animate-pulse">
                         <td className="px-4 py-4">

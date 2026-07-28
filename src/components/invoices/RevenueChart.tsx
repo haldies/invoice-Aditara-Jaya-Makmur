@@ -60,11 +60,11 @@ export function RevenueChart({ data }: RevenueChartProps) {
             contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
             formatter={(value: any, name: any) => [
               `Rp ${Number(value).toLocaleString("id-ID")}`,
-              name === "revenue" ? "Omset (Deal)" : "Laba Bersih"
+              name === "revenue" ? "Omset" : "Laba Bersih"
             ]}
           />
           <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
-          <Bar dataKey="revenue" name="Omset (Deal)" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={50} />
+          <Bar dataKey="revenue" name="Omset" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={50} />
           <Bar dataKey="profit" name="Laba Bersih" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={50} />
         </BarChart>
       </ResponsiveContainer>

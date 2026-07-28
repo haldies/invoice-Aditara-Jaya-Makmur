@@ -58,6 +58,7 @@ export function InvoiceList() {
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [clientFilter, setClientFilter] = useState("all");
   const [salesFilter, setSalesFilter] = useState("all");
+  const [supplierFilter, setSupplierFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState("newest");
   const [productFilter, setProductFilter] = useState("all");
   const [cityFilter, setCityFilter] = useState("all");
@@ -74,6 +75,7 @@ export function InvoiceList() {
         if (parsed.paymentFilter) setPaymentFilter(parsed.paymentFilter);
         if (parsed.clientFilter) setClientFilter(parsed.clientFilter);
         if (parsed.salesFilter) setSalesFilter(parsed.salesFilter);
+        if (parsed.supplierFilter) setSupplierFilter(parsed.supplierFilter);
         if (parsed.sortOrder) setSortOrder(parsed.sortOrder);
         if (parsed.productFilter) setProductFilter(parsed.productFilter);
         if (parsed.cityFilter) setCityFilter(parsed.cityFilter);
@@ -86,10 +88,10 @@ export function InvoiceList() {
   useEffect(() => {
     try {
       sessionStorage.setItem("invoiceFilters", JSON.stringify({
-        statusFilter, paymentFilter, clientFilter, salesFilter, sortOrder, productFilter, cityFilter, search
+        statusFilter, paymentFilter, clientFilter, salesFilter, supplierFilter, sortOrder, productFilter, cityFilter, search
       }));
     } catch (e) {}
-  }, [statusFilter, paymentFilter, clientFilter, salesFilter, sortOrder, productFilter, cityFilter, search]);
+  }, [statusFilter, paymentFilter, clientFilter, salesFilter, supplierFilter, sortOrder, productFilter, cityFilter, search]);
 
   const debouncedSearch = useDebounce(search, 500);
 
@@ -101,6 +103,7 @@ export function InvoiceList() {
     payment_status: paymentFilter,
     client_id: clientFilter,
     sales: salesFilter,
+    supplier: supplierFilter,
     product: productFilter,
     city: cityFilter,
     sort: sortOrder,
@@ -206,6 +209,21 @@ export function InvoiceList() {
               {clients.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Filter Supplier */}
+          <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+            <SelectTrigger className="h-9 text-xs font-semibold">
+              <SelectValue placeholder="Semua Supplier" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Supplier</SelectItem>
+              {filterOptions.suppliers.map((sup) => (
+                <SelectItem key={sup} value={sup}>
+                  {sup}
                 </SelectItem>
               ))}
             </SelectContent>

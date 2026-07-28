@@ -59,9 +59,12 @@ export default async function handler(
     if (c.address?.trim()) citySet.add(c.address.trim());
   });
 
+  const suppliers = ["KOKO SUPPLIER", "MITRA1"];
+
   return res.status(200).json({
     sales: Array.from(salesSet).sort(),
     products: Array.from(productSet).sort(),
+    suppliers,
     cities: Array.from(citySet).sort(),
   });
 }

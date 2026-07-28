@@ -12,7 +12,7 @@ export default async function handler(
 
   switch (req.method) {
     case "GET": {
-      const { status, payment_status, search, client_id, sales, product, city, sort, page, limit } = req.query;
+      const { status, payment_status, search, client_id, sales, product, supplier, city, sort, page, limit } = req.query;
       const invoices = await invoiceRepo.listInvoices(actor, {
         status: status as any,
         payment_status: payment_status as any,
@@ -20,6 +20,7 @@ export default async function handler(
         client_id: client_id as string | undefined,
         sales: sales as string | undefined,
         product: product as string | undefined,
+        supplier: supplier as string | undefined,
         city: city as string | undefined,
         sort: sort as string | undefined,
         page: page ? parseInt(page as string, 10) : undefined,
@@ -32,7 +33,10 @@ export default async function handler(
       try {
         const invoice = await invoiceRepo.createInvoice(actor, req.body);
         return res.status(201).json(invoice);
-      } catch (error: unknown) {
+      } catch (error: any) {
+        if (error.code === 'P2002' || error.message?.includes('Unique constraint failed')) {
+          return res.status(400).json({ error: `Nomor Transaksi/Invoice '${req.body?.invoice_number}' sudah pernah digunakan. Silakan gunakan nomor yang lain.` });
+        }
         return res.status(400).json({ error: getErrorMessage(error) });
       }
     }

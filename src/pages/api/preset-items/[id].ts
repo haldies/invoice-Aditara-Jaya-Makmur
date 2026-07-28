@@ -29,7 +29,7 @@ export default async function handler(
       return res.status(403).json({ error: "Akses ditolak: hanya admin yang dapat mengelola produk." });
     }
     try {
-      const { name, description, unit_price, buy_in_price, ajm_price, tax_rate } = req.body;
+      const { name, description, category, supplier, unit_price, buy_in_price, ajm_price, tax_rate } = req.body;
       if (!name) {
         return res.status(400).json({ error: "Name is required" });
       }
@@ -39,6 +39,8 @@ export default async function handler(
         data: {
           name,
           description: description || "",
+          ...(category ? { category } : {}),
+          ...(supplier ? { supplier } : {}),
           unit_price: Number(unit_price || 0),
           buy_in_price: Number(buy_in_price || 0),
           ajm_price: Number(ajm_price || 0),

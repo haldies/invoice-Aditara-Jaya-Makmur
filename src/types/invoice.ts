@@ -55,6 +55,7 @@ export interface InvoiceItem {
   unit_price: number;
   ajm_price?: number;         // Harga net perusahaan (AJM) untuk hitung komisi/fee (diisi admin)
   buy_in_price: number;       // HPP / harga beli ke supplier (diisi admin)
+  supplier?: string | null;   // Supplier/Mitra yang dieksekusi admin
   line_total: number;
   sort_order: number;
 }
@@ -97,6 +98,7 @@ export type InvoiceItemInput = Pick<
   id?: string;
   sort_order?: number;
   actual_quantity?: number | null;
+  supplier?: string | null;
 };
 
 export interface InvoiceInput {
@@ -131,12 +133,13 @@ export interface InvoiceInput {
 }
 
 export interface InvoiceFilters {
-  status?: InvoiceStatus | "all";
+  status?: InvoiceStatus | "all" | string;
   payment_status?: "all" | "lunas" | "belum_lunas";
   search?: string;
   client_id?: string;
   sales?: string;
   product?: string;
+  supplier?: string;
   city?: string;
   sort?: string;
   page?: number;
@@ -171,6 +174,8 @@ export interface InvoicePresetItem {
   user_id: string;
   name: string;
   description: string;
+  category: string;     // "BETON" | "BESI" | string
+  supplier: string;     // "KOKO SUPPLIER" | "MITRA1" | string
   unit_price: number;    // Harga jual ke customer (deal price)
   ajm_price?: number;    // Harga AJM
   buy_in_price: number;  // HPP / harga beli ke supplier (diisi admin)
@@ -181,6 +186,6 @@ export interface InvoicePresetItem {
 
 export type InvoicePresetItemInput = Pick<
   InvoicePresetItem,
-  "name" | "description" | "unit_price" | "ajm_price" | "buy_in_price" | "tax_rate"
+  "name" | "description" | "category" | "supplier" | "unit_price" | "ajm_price" | "buy_in_price" | "tax_rate"
 >;
 

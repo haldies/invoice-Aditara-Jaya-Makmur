@@ -24,8 +24,8 @@ type MenuIcon = ComponentType<{ className?: string }>;
 
 const trackerMenuItems: Array<{ title: string; url: string; icon: MenuIcon, roles?: string[] }> = [
   { title: "Ringkasan", url: "/tracker", icon: Home as MenuIcon, roles: ["owner", "admin", "manager", "user"] },
-  { title: "Daftar Transaksi", url: "/tracker/invoices", icon: ReceiptText as MenuIcon, roles: ["owner", "admin", "manager", "user", "sales"] },
-  { title: "Buat Transaksi", url: "/tracker/invoices/new", icon: FilePlus2 as MenuIcon, roles: ["owner", "admin", "manager", "user", "sales"] },
+  { title: "Transaksi", url: "/tracker/invoices", icon: ReceiptText as MenuIcon, roles: ["owner", "admin", "manager", "user", "sales"] },
+  { title: "Buat", url: "/tracker/invoices/new", icon: FilePlus2 as MenuIcon, roles: ["owner", "admin", "manager", "user", "sales"] },
   { title: "Produk", url: "/tracker/presets", icon: Tag as MenuIcon, roles: ["owner", "admin", "manager"] },
   { title: "Pengguna", url: "/tracker/users", icon: Users as MenuIcon, roles: ["owner", "admin", "manager"] },
   { title: "Settings", url: "/settings", icon: Settings as MenuIcon, roles: ["owner", "admin", "manager", "user", "sales"] },
@@ -139,22 +139,21 @@ function MobileBottomNav() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const visibleMenuItems = trackerMenuItems.filter(item => 
-    !item.roles || (user && item.roles.includes(user.role))
-  );
+  // Mobile menu items strictly capped at max 5 items
+  // Pengguna is removed from mobile bottom bar and accessed through Settings
+  const mobileMenuItems = trackerMenuItems
+    .filter(item => item.url !== "/tracker/users")
+    .filter(item => !item.roles || (user && item.roles.includes(user.role)))
+    .slice(0, 5);
 
   const isActive = (path: string) => {
     if (path === "/tracker") return router.pathname === "/tracker" || router.pathname === "/tracker/index";
     if (path === "/tracker/invoices") return router.pathname === path || router.pathname === "/tracker/invoices/[id]";
     if (path === "/tracker/invoices/new") return router.pathname === path;
+    if (path === "/settings") return router.pathname === "/settings" || router.pathname.startsWith("/tracker/users");
     if (path === "/tracker/templates") return router.pathname.startsWith("/tracker/templates");
     return router.pathname.startsWith(path);
   };
-
-  const activeIndex = Math.max(
-    0,
-    trackerMenuItems.findIndex((item) => isActive(item.url))
-  );
 
   return (
     <nav
@@ -164,7 +163,7 @@ function MobileBottomNav() {
     >
       <div className="h-[60px] relative">
         <ul className="relative z-10 flex h-full justify-around items-center">
-        {visibleMenuItems.map((item) => {
+        {mobileMenuItems.map((item) => {
           const active = isActive(item.url);
           const isCreateAction = item.url === "/tracker/invoices/new";
           return (
@@ -204,7 +203,7 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children, title }: AppLayoutProps) {
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const { user } = useAuth();

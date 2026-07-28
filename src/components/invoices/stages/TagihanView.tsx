@@ -33,6 +33,7 @@ export function TagihanView({ invoice, onUpdated }: Props) {
       actual_quantity: i.actual_quantity,
       unit_price: i.unit_price,
       buy_in_price: i.buy_in_price || 0,
+      supplier: (i as any).supplier || null,
       sort_order: i.sort_order,
     }))
   );
@@ -147,46 +148,74 @@ export function TagihanView({ invoice, onUpdated }: Props) {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <h2 className="font-bold text-sm">Konfirmasi HPP Beli</h2>
-            <div className="flex items-center gap-1 bg-blue-50 text-blue-700 rounded-full px-2 py-0.5">
-              <Info className="h-3 w-3 shrink-0" />
-              <span className="text-[10px] font-medium">Isi harga modal (buy-in) per produk</span>
-            </div>
           </div>
 
-          {/* Column Headers */}
-          <div className="hidden sm:grid grid-cols-[1fr_80px_100px_100px] gap-2 px-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          {/* Table Headers for Desktop */}
+          <div className="hidden md:grid md:grid-cols-[1fr_80px_140px_120px_100px] gap-3 px-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             <div>Produk</div>
             <div className="text-center">Vol Deal</div>
-            <div className="text-right text-orange-600">HPP Beli</div>
+            <div>Supplier Pengadaan</div>
+            <div className="text-right text-orange-600">HPP Beli (Rp)</div>
             <div className="text-right">Harga Jual</div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-3">
             {items.map((item, idx) => (
-              <div key={idx} className="flex flex-col sm:grid sm:grid-cols-[1fr_80px_100px_100px] gap-2 sm:items-center bg-card border rounded-xl px-3 py-3">
-                <div className="mb-1 sm:mb-0">
-                  <p className="font-semibold text-xs text-foreground line-clamp-2" title={item.description}>{item.description}</p>
+              <div key={idx} className="bg-card border rounded-2xl p-4 md:p-3 space-y-3 md:space-y-0 md:grid md:grid-cols-[1fr_80px_140px_120px_100px] md:gap-3 md:items-center shadow-xs">
+                {/* Product Name & Info Header */}
+                <div className="border-b pb-2 md:border-0 md:pb-0 space-y-1">
+                  <p className="font-bold text-sm md:text-xs text-foreground leading-snug break-words" title={item.description}>
+                    {item.description.split(" - ")[0]}
+                  </p>
+                  <div className="flex items-center justify-between text-[11px] md:hidden">
+                    <span className="text-muted-foreground font-semibold">
+                      Vol: <strong className="text-foreground">{Number(item.quantity || 0).toLocaleString("id-ID")} m³</strong>
+                    </span>
+                    <span className="text-muted-foreground font-semibold">
+                      Harga Jual: <strong className="text-foreground">{fmt(item.unit_price)}</strong>
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between sm:justify-center">
-                  <span className="text-[10px] text-muted-foreground uppercase font-bold sm:hidden">Vol Deal</span>
-                  <span className="font-bold text-xs text-center">{Number(item.quantity || 0).toLocaleString("id-ID")}</span>
+
+                {/* Volume (Desktop Only) */}
+                <div className="hidden md:block text-center font-bold text-xs text-foreground">
+                  {Number(item.quantity || 0).toLocaleString("id-ID")} m³
                 </div>
-                <div className="flex items-center justify-between sm:justify-end">
-                  <span className="text-[10px] text-orange-600 uppercase font-bold sm:hidden">HPP Beli</span>
+
+                {/* Supplier Field */}
+                <div className="space-y-1 md:space-y-0">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase block md:hidden">Supplier Pengadaan</label>
+                  <select
+                    value={(item as any).supplier || "KOKO SUPPLIER"}
+                    onChange={(e) => {
+                      updateItem(idx, "supplier" as any, e.target.value);
+                      setTimeout(() => save(), 50);
+                    }}
+                    className="h-9 md:h-8 w-full rounded-lg border border-input bg-background px-2.5 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary truncate"
+                  >
+                    <option value="KOKO SUPPLIER">KOKO SUPPLIER</option>
+                    <option value="MITRA1">MITRA1</option>
+                    <option value="MITRA2">MITRA2</option>
+                    <option value="MITRA3">MITRA3</option>
+                  </select>
+                </div>
+
+                {/* HPP Beli Input */}
+                <div className="space-y-1 md:space-y-0">
+                  <label className="text-[10px] font-bold text-orange-600 uppercase block md:hidden">HPP Beli (Rp)</label>
                   <Input
                     type="number" min="0"
                     value={item.buy_in_price || ""}
                     onChange={(e) => updateItem(idx, "buy_in_price", e.target.value ? Number(e.target.value) : 0)}
                     onBlur={() => save()}
                     placeholder="0"
-                    className="h-8 w-28 sm:w-full text-right text-xs px-1.5 border-orange-200 bg-orange-50/50 focus-visible:ring-orange-300"
+                    className="h-9 md:h-8 w-full text-right text-xs px-2.5 border-orange-300 bg-orange-50/60 focus-visible:ring-orange-400 font-bold"
                   />
                 </div>
-                <div className="flex items-center justify-between sm:justify-end">
-                  <span className="text-[10px] text-muted-foreground uppercase font-bold sm:hidden">Harga Jual</span>
-                  <div className="text-right text-xs font-semibold text-muted-foreground">
-                    {fmt(item.unit_price)}
-                  </div>
+
+                {/* Harga Jual (Desktop Only) */}
+                <div className="hidden md:block text-right text-xs font-bold text-foreground">
+                  {fmt(item.unit_price)}
                 </div>
               </div>
             ))}
@@ -225,43 +254,43 @@ export function TagihanView({ invoice, onUpdated }: Props) {
           </div>
 
           {/* Margin Panel */}
-          <div className="bg-slate-50/50 rounded-2xl p-5 space-y-5">
+          <div className="bg-slate-50/50 rounded-2xl p-4 md:p-5 space-y-4 border">
             <p className="font-bold text-sm text-slate-700">Estimasi Margin</p>
             
-            <div className="w-full overflow-x-auto">
-              <table className="w-full text-xs text-right min-w-[350px]">
-                <thead className="text-slate-500 border-b border-slate-200">
+            <div className="w-full overflow-x-auto no-scrollbar border-b pb-2">
+              <table className="w-full text-xs text-right min-w-[280px]">
+                <thead className="text-slate-500 border-b border-slate-200 text-[10px] uppercase font-bold">
                   <tr>
-                    <th className="py-2 px-2 text-left font-medium">Komponen</th>
-                    <th className="py-2 px-2 font-medium">DPP</th>
-                    <th className="py-2 px-2 font-medium">PPN 11%</th>
-                    <th className="py-2 px-2 font-medium">Total</th>
+                    <th className="py-1.5 px-1 text-left">Komponen</th>
+                    <th className="py-1.5 px-1">DPP</th>
+                    <th className="py-1.5 px-1">PPN 11%</th>
+                    <th className="py-1.5 px-1">Total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   <tr>
-                    <td className="py-2.5 px-2 text-left font-medium text-slate-600">Harga Jual</td>
-                    <td className="py-2.5 px-2 text-slate-600">{fmt(margin.dealDPP)}</td>
-                    <td className="py-2.5 px-2 text-slate-600">{fmt(margin.dealPPN)}</td>
-                    <td className="py-2.5 px-2 font-bold text-emerald-600">{fmt(margin.dealTotal)}</td>
+                    <td className="py-2 px-1 text-left font-medium text-slate-600">Harga Jual</td>
+                    <td className="py-2 px-1 text-slate-600 text-[11px]">{fmt(margin.dealDPP)}</td>
+                    <td className="py-2 px-1 text-slate-600 text-[11px]">{fmt(margin.dealPPN)}</td>
+                    <td className="py-2 px-1 font-bold text-emerald-600 text-[11px]">{fmt(margin.dealTotal)}</td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-2 text-left font-medium text-slate-600">Harga Dasar</td>
-                    <td className="py-2.5 px-2 text-slate-600">{fmt(margin.ajmDPP)}</td>
-                    <td className="py-2.5 px-2 text-slate-600">{fmt(margin.ajmPPN)}</td>
-                    <td className="py-2.5 px-2 font-bold text-blue-600">{fmt(margin.ajmTotal)}</td>
+                    <td className="py-2 px-1 text-left font-medium text-slate-600">Harga Dasar</td>
+                    <td className="py-2 px-1 text-slate-600 text-[11px]">{fmt(margin.ajmDPP)}</td>
+                    <td className="py-2 px-1 text-slate-600 text-[11px]">{fmt(margin.ajmPPN)}</td>
+                    <td className="py-2 px-1 font-bold text-blue-600 text-[11px]">{fmt(margin.ajmTotal)}</td>
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-2 text-left font-medium text-slate-600">Harga Modal</td>
-                    <td className="py-2.5 px-2 text-slate-600">{fmt(margin.hppDPP)}</td>
-                    <td className="py-2.5 px-2 text-slate-600">{fmt(margin.hppPPN)}</td>
-                    <td className="py-2.5 px-2 font-bold text-orange-600">{fmt(margin.hppTotal)}</td>
+                    <td className="py-2 px-1 text-left font-medium text-slate-600">Harga Modal</td>
+                    <td className="py-2 px-1 text-slate-600 text-[11px]">{fmt(margin.hppDPP)}</td>
+                    <td className="py-2 px-1 text-slate-600 text-[11px]">{fmt(margin.hppPPN)}</td>
+                    <td className="py-2 px-1 font-bold text-orange-600 text-[11px]">{fmt(margin.hppTotal)}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            <div className="space-y-2 pt-3 border-t border-slate-200">
+            <div className="space-y-2 pt-1 text-xs">
               {margin.totalEksternalFee > 0 && (
                 <div className="flex justify-between text-rose-600 text-xs">
                   <span>Fee Eksternal (Komisi)</span><span>- {fmt(margin.totalEksternalFee)}</span>
@@ -275,7 +304,7 @@ export function TagihanView({ invoice, onUpdated }: Props) {
               <div className="flex justify-between text-slate-600 text-xs">
                 <span>Total Margin Kotor</span><span className="font-semibold text-blue-700">{fmt(margin.grossMargin)}</span>
               </div>
-              <div className={`flex justify-between items-center pt-3 border-t border-slate-200 font-bold text-base ${margin.netMargin >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+              <div className={`flex justify-between items-center pt-2.5 border-t border-slate-200 font-bold text-sm md:text-base ${margin.netMargin >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                 <span>Laba Bersih</span>
                 <span>{fmt(margin.netMargin)}</span>
               </div>

@@ -27,16 +27,22 @@ export default async function handler(
       return res.status(403).json({ error: "Akses ditolak: hanya admin yang dapat mengelola produk." });
     }
     try {
-      const { name, description, unit_price, buy_in_price, ajm_price, tax_rate } = req.body;
+      const { name, description, category, supplier, unit_price, buy_in_price, ajm_price, tax_rate } = req.body;
       if (!name) {
         return res.status(400).json({ error: "Name is required" });
       }
+
+      // Auto assign supplier based on category if not explicitly provided
+      const finalCategory = category || "BETON";
+      const finalSupplier = supplier || (finalCategory === "BESI" ? "MITRA1" : "KOKO SUPPLIER");
 
       const newItem = await prisma.invoicePresetItem.create({
         data: {
           user_id: user.id,
           name,
           description: description || "",
+          category: finalCategory,
+          supplier: finalSupplier,
           unit_price: Number(unit_price || 0),
           buy_in_price: Number(buy_in_price || 0),
           ajm_price: Number(ajm_price || 0),

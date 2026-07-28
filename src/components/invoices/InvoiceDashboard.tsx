@@ -735,7 +735,7 @@ export function InvoiceDashboard() {
             <div>
               <h2 className="text-sm font-bold text-foreground">Grafik Omset & Laba</h2>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Pergerakan Omset (Deal) dan Laba Bersih berdasarkan waktu yang dipilih.
+                Pergerakan Omset dan Laba Bersih berdasarkan waktu yang dipilih.
               </p>
             </div>
             <RevenueChart data={stats.chartData} />

@@ -199,11 +199,11 @@ export default function SalesDetailPage() {
                   name === "volume"
                     ? `${Number(v).toLocaleString("id-ID")} m³`
                     : `Rp ${Number(v).toLocaleString("id-ID")}`,
-                  name === "volume" ? "Volume" : "Omset (Deal)",
+                  name === "volume" ? "Volume" : "Omset",
                 ]}
               />
               <Legend iconType="circle" wrapperStyle={{ fontSize: "12px" }} />
-              <Bar dataKey="revenue" name="Omset (Deal)" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+              <Bar dataKey="revenue" name="Omset" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
             </BarChart>
           </ResponsiveContainer>
         </div>

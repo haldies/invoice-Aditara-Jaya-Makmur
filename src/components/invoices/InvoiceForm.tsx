@@ -295,8 +295,9 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
       const dealQty = Number(item.quantity || 0);
       const billedQty = item.actual_quantity != null ? Number(item.actual_quantity) : dealQty;
       const dealPrice = Number(item.unit_price || 0);
-      const ajmPrice = Number((item as any).ajm_price || 0);
-      const commission = dealPrice - ajmPrice;
+      const rawAjm = Number((item as any).ajm_price);
+      const ajmPrice = (rawAjm && rawAjm > 0) ? rawAjm : dealPrice;
+      const commission = Math.max(0, dealPrice - ajmPrice);
       
       totalDeal += billedQty * dealPrice;
       totalAjm += billedQty * ajmPrice;
@@ -381,6 +382,21 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
   // Save with explicit status override (used by dual-button for sales)
   const saveWithStatus = async (statusOverride: string) => {
     if (isSaving) return;
+
+    // Check if buy_in_price is below preset base price
+    for (const item of form.items) {
+      if (!item.description.trim()) continue;
+      const matchedPreset = presetItems.find(p => item.description.toLowerCase().includes(p.name.toLowerCase()));
+      if (matchedPreset && item.buy_in_price > 0 && matchedPreset.buy_in_price > 0 && item.buy_in_price < matchedPreset.buy_in_price) {
+        toast({
+          title: "Harga Modal Terlalu Rendah",
+          description: `Harga modal untuk "${item.description}" (Rp ${Number(item.buy_in_price).toLocaleString("id-ID")}) tidak boleh di bawah harga dasar modal pabrik di daftar produk (Rp ${Number(matchedPreset.buy_in_price).toLocaleString("id-ID")}).`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setIsSaving(true);
     const payload = {
       ...form,
@@ -398,6 +414,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
           actual_quantity: item.actual_quantity != null ? Number(item.actual_quantity) : null,
           unit_price: Number(item.unit_price || 0),
           buy_in_price: Number(item.buy_in_price || 0),
+          ajm_price: Number((item as any).ajm_price || item.unit_price || 0),
           sort_order: index,
         })),
     };
@@ -581,7 +598,14 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                       </DialogTrigger>
                       <DialogContent className="max-w-lg w-full h-[100dvh] sm:h-[80vh] p-0 flex flex-col border-0 sm:border rounded-none sm:rounded-xl bg-card overflow-hidden">
                         <DialogHeader className="p-4 border-b shrink-0 relative bg-muted/30">
-                          <DialogTitle className="font-black text-lg">Pilih Produk</DialogTitle>
+                          <div className="flex items-center justify-between">
+                            <DialogTitle className="font-black text-lg">Katalog Produk</DialogTitle>
+                            {form.items.filter(i => i.description.trim()).length > 0 && (
+                              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-primary text-primary-foreground">
+                                {form.items.filter(i => i.description.trim()).length} Ditambahkan
+                              </span>
+                            )}
+                          </div>
                           <div className="relative mt-3">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                             <Input
@@ -599,40 +623,67 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                           ) : (
                             presetItems
                               .filter(p => !catalogSearch.trim() || p.name.toLowerCase().includes(catalogSearch.toLowerCase()))
-                              .map(p => (
-                              <button
-                                key={p.id}
-                                type="button"
-                                onClick={() => {
-                                  const desc = p.name + (p.description ? ` - ${p.description}` : "");
-                                  setForm(cur => ({
-                                    ...cur,
-                                    items: [...cur.items, { description: desc, quantity: 1, actual_quantity: null, unit_price: Number(p.unit_price) || 0, buy_in_price: Number(p.buy_in_price) || 0, sort_order: cur.items.length }]
-                                  }));
-                                  toast({ 
-                                    title: "✅ Berhasil ditambahkan", 
-                                    description: p.name,
-                                  });
-                                }}
-                                className="w-full flex items-center justify-between text-left px-4 py-3.5 rounded-xl border bg-card hover:border-slate-800 hover:bg-slate-50 transition-all group"
-                              >
-                                <div>
-                                  <p className="font-bold text-sm group-hover:text-primary transition-colors">{p.name}</p>
-                                  {p.description && <p className="text-xs text-muted-foreground mt-0.5">{p.description}</p>}
-                                </div>
-                                <div className="text-right ml-3 shrink-0">
-                                  <p className="font-black text-sm">Rp {Number(p.unit_price).toLocaleString("id-ID")}</p>
-                                </div>
-                              </button>
-                            ))
+                              .map(p => {
+                                const isAdded = form.items.some(i => i.description.toLowerCase().includes(p.name.toLowerCase()));
+                                return (
+                                  <button
+                                    key={p.id}
+                                    type="button"
+                                    onClick={() => {
+                                      const desc = p.name;
+                                      setForm(cur => ({
+                                        ...cur,
+                                        items: [
+                                          ...cur.items.filter(i => i.description.trim() !== ""),
+                                          {
+                                            description: desc,
+                                            quantity: 1,
+                                            actual_quantity: null,
+                                            unit_price: Number(p.unit_price) || 0,
+                                            ajm_price: Number(p.ajm_price || p.unit_price) || 0,
+                                            buy_in_price: Number(p.buy_in_price) || 0,
+                                            supplier: p.supplier || (p.category === "BESI" ? "MITRA1" : "KOKO SUPPLIER"),
+                                            sort_order: cur.items.length
+                                          }
+                                        ]
+                                      }));
+                                      toast({ 
+                                        title: "Berhasil Ditambahkan", 
+                                        description: p.name,
+                                      });
+                                    }}
+                                    className={`w-full flex items-center justify-between text-left px-4 py-3 rounded-xl border transition-all ${
+                                      isAdded ? "bg-primary/5 border-primary/40" : "bg-card hover:bg-accent"
+                                    }`}
+                                  >
+                                    <div>
+                                      <div className="flex items-center gap-2 mb-0.5">
+                                        <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                                          {p.category || 'BETON'}
+                                        </span>
+                                        {isAdded && (
+                                          <span className="inline-flex items-center text-[10px] font-bold text-primary">
+                                            <Check className="h-3 w-3 mr-0.5" /> Ditambahkan
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="font-bold text-sm text-foreground">{p.name}</p>
+                                      {p.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{p.description}</p>}
+                                    </div>
+                                    <div className="text-right ml-3 shrink-0">
+                                      <p className="font-bold text-sm text-foreground">Rp {Number(p.unit_price).toLocaleString("id-ID")}</p>
+                                    </div>
+                                  </button>
+                                );
+                              })
                           )}
                         </div>
                         <div className="p-3 border-t bg-card shrink-0">
                           <Button 
                             onClick={() => setIsCatalogOpen(false)} 
-                            className="w-full h-11 font-bold text-sm bg-slate-900 hover:bg-slate-800 text-white"
+                            className="w-full h-11 font-bold text-sm bg-primary text-primary-foreground hover:bg-primary/90"
                           >
-                            Tutup Katalog
+                            Selesai Pilih {form.items.filter(i => i.description.trim()).length > 0 ? `(${form.items.filter(i => i.description.trim()).length} Produk)` : ""}
                           </Button>
                         </div>
                       </DialogContent>
@@ -643,11 +694,11 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
               <>
                   {/* HEADER DESKTOP (ADMIN: TAGIHAN / PO / PENGIRIMAN) */}
                   {isAdmin && (form.status === "tagihan" || form.status === "po" || form.status === "pengiriman") && (
-                    <div className={`hidden sm:grid ${form.status === "pengiriman" ? "grid-cols-[1fr_45px_45px_65px_80px_80px_90px_28px]" : "grid-cols-[1fr_45px_45px_80px_80px_90px_28px]"} gap-2 px-3 pb-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b mb-2`}>
+                    <div className={`hidden sm:grid ${form.status === "pengiriman" ? "grid-cols-[1fr_45px_45px_100px_80px_80px_90px_28px]" : "grid-cols-[1fr_45px_100px_80px_80px_90px_28px]"} gap-2 px-3 pb-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b mb-2`}>
                       <div>Produk / Layanan</div>
                       <div className="text-center" title="Volume/Qty Deal">Vol</div>
-                      {form.status === "pengiriman" ? <div className="text-center text-emerald-600" title="Volume Aktual">Akt</div> : <div></div>}
-                      {form.status === "pengiriman" ? <div className="text-right text-purple-600" title="Komisi Sales / m³">Komisi</div> : <></>}
+                      {form.status === "pengiriman" ? <div className="text-center text-emerald-600" title="Volume Aktual">Akt</div> : null}
+                      <div className="text-center" title="Pilih Supplier / Mitra">Supplier</div>
                       <div className="text-right text-blue-600" title="Harga Net Asli Perusahaan">Net AJM</div>
                       <div className="text-right text-orange-600" title="HPP Modal Pabrik">Buy In</div>
                       <div className="text-right" title="Harga Jual ke Klien">Deal/Jual</div>
@@ -680,9 +731,9 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                       isSales
                         ? "grid-cols-1 sm:grid-cols-[1fr_80px_120px_auto] bg-card p-3 rounded-xl border shadow-sm mb-2"
                         : isAdmin && form.status === "pengiriman"
-                          ? "grid-cols-[1fr_45px_45px_80px_80px_90px_28px]"
+                          ? "grid-cols-[1fr_45px_45px_100px_80px_80px_90px_28px]"
                           : isAdmin && (form.status === "tagihan" || form.status === "po")
-                            ? "grid-cols-[1fr_45px_45px_80px_80px_90px_28px]"
+                            ? "grid-cols-[1fr_45px_100px_80px_80px_90px_28px]"
                             : "grid-cols-[1fr_60px_90px_28px]"
                     }`}>
                       {/* Produk selector */}
@@ -741,9 +792,30 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
 
 
 
-                      {/* HPP Beli (admin: tagihan, po & pengiriman) */}
+                      {/* HPP Beli & Supplier (admin: tagihan, po & pengiriman) */}
                       {isAdmin && (form.status === "tagihan" || form.status === "po" || form.status === "pengiriman") && (
                         <>
+                          {/* Supplier / Mitra Execution Choice */}
+                          <div>
+                            {canEditBuyIn ? (
+                              <select
+                                value={(item as any).supplier || (selectedPreset?.supplier || ((selectedPreset?.category || 'BETON') === 'BESI' ? 'MITRA1' : 'KOKO SUPPLIER'))}
+                                onChange={(e) => updateItem(index, "supplier" as any, e.target.value)}
+                                className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                                title="Pilih Supplier / Mitra Pengadaan"
+                              >
+                                <option value="KOKO SUPPLIER">KOKO SUPPLIER</option>
+                                <option value="MITRA1">MITRA1</option>
+                                <option value="MITRA2">MITRA2</option>
+                                <option value="MITRA3">MITRA3</option>
+                              </select>
+                            ) : (
+                              <div className="flex items-center justify-center h-9 px-1.5 bg-muted/10 border border-transparent rounded-md text-[11px] font-semibold text-foreground truncate">
+                                {(item as any).supplier || selectedPreset?.supplier || "-"}
+                              </div>
+                            )}
+                          </div>
+
                           {/* Harga AJM (Net) */}
                           <div className={isSales ? "hidden" : ""}>
                             {canEditBuyIn ? (
@@ -963,45 +1035,15 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                   </div>
                 )}
 
-                {/* Ongkos Kirim */}
-                {(() => {
-                  const shippingVal = Number(form.shipping_fee ?? 0);
-                  const hasRates = shippingRates.length > 0;
-                  const globalMinOrder = shippingRates.find(r => r.area === "GLOBAL_MIN_ORDER");
-                  const isConfigured = !!globalMinOrder;
-
-                  if (shippingVal > 0) {
-                    return (
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1"><Truck className="h-3 w-3" /> Ongkos Kirim</span>
-                        <span className="font-semibold text-foreground">+ Rp {shippingVal.toLocaleString("id-ID")}</span>
-                      </div>
-                    );
-                  }
-                  if (isAdmin && !hasRates && !loadingShipping) {
-                    return (
-                      <div className="text-[10px] text-amber-500 flex items-center gap-1">
-                        <Truck className="h-3 w-3" /> Atur tarif ongkir di Pengaturan → Ongkos Kirim
-                      </div>
-                    );
-                  }
-                  if (isAdmin && hasRates && !isConfigured) {
-                    return (
-                      <div className="text-[10px] text-amber-500 flex items-center gap-1">
-                        <Truck className="h-3 w-3" /> Silakan simpan ulang pengaturan Ongkos Kirim Per Pulau
-                      </div>
-                    );
-                  }
-                  if (shippingVal === 0 && isConfigured) {
-                    return (
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1"><Truck className="h-3 w-3" /> Ongkos Kirim</span>
-                        <span className="font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">GRATIS</span>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
+                {/* Ongkos Kirim - Always Visible */}
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1"><Truck className="h-3.5 w-3.5" /> Ongkos Kirim</span>
+                  {Number(form.shipping_fee || 0) > 0 ? (
+                    <span className="font-semibold text-foreground">+ Rp {Number(form.shipping_fee).toLocaleString("id-ID")}</span>
+                  ) : (
+                    <span className="font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded text-[11px]">GRATIS / Rp 0</span>
+                  )}
+                </div>
 
                 {isAdmin && (
                   <div className="flex items-center justify-between py-1 text-xs">

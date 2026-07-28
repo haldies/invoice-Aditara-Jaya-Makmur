@@ -68,6 +68,7 @@ function rowToInvoice(row: InvoiceRow): Invoice {
       ...item,
       actual_quantity: item.actual_quantity ?? null,
       ajm_price: item.ajm_price ?? undefined,
+      supplier: (item as any).supplier ?? null,
     })),
   };
 }
@@ -97,6 +98,7 @@ function calculateTotals(input: Pick<InvoiceInput, "items"> & {
       unit_price: unitPrice,
       ajm_price: item.ajm_price,
       buy_in_price: buyInPrice,
+      ...(item.supplier ? { supplier: item.supplier } : {}),
       line_total: billedQty * unitPrice,
       sort_order: item.sort_order ?? index,
     };
@@ -186,8 +188,42 @@ export async function listInvoices(
   }
   if (filters.product && filters.product !== "all") {
     where.items = {
-      some: { description: { contains: filters.product, mode: "insensitive" } }
+      ...(where.items || {}),
+      some: {
+        ...((where.items as any)?.some || {}),
+        description: { contains: filters.product, mode: "insensitive" },
+      },
     };
+  }
+  if (filters.supplier && filters.supplier !== "all") {
+    // Find preset item names or descriptions matching the supplier from InvoicePresetItem table
+    const presetItemsWithSupplier = await prisma.invoicePresetItem.findMany({
+      where: { supplier: { equals: filters.supplier, mode: "insensitive" } },
+      select: { name: true },
+    });
+    const presetNames = presetItemsWithSupplier.map((p) => p.name);
+
+    if (presetNames.length > 0) {
+      where.items = {
+        ...(where.items || {}),
+        some: {
+          ...((where.items as any)?.some || {}),
+          OR: presetNames.map((name) => ({
+            description: { contains: name, mode: "insensitive" },
+          })),
+        },
+      };
+    } else {
+      // Fallback matching logic
+      const term = filters.supplier.toLowerCase().includes("koko") ? "Beton" : "Wiremesh";
+      where.items = {
+        ...(where.items || {}),
+        some: {
+          ...((where.items as any)?.some || {}),
+          description: { contains: term, mode: "insensitive" },
+        },
+      };
+    }
   }
   if (filters.city && filters.city !== "all") {
     where.OR = [

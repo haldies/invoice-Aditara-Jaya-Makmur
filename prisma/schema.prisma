@@ -107,6 +107,7 @@ model InvoiceItem {
   unit_price      Float   @default(0)
   ajm_price       Float?  // Harga net perusahaan untuk hitung fee eksternal
   buy_in_price    Float   @default(0)
+  supplier        String? // Supplier/Mitra yang mengeksekusi barang (diisi admin pas PO/Tagihan)
   line_total      Float   @default(0)
   sort_order      Int     @default(0)
   invoice         Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
@@ -147,6 +148,8 @@ model InvoicePresetItem {
   user_id      String   @db.Uuid
   name         String
   description  String   @default("")
+  category     String   @default("BETON")  // "BETON" atau "BESI"
+  supplier     String   @default("KOKO SUPPLIER") // "KOKO SUPPLIER" atau "MITRA1"
   unit_price   Float    @default(0)
   buy_in_price Float    @default(0)  // Harga beli ke supplier (HPP), diisi admin
   ajm_price    Float    @default(0)  // Harga fix dari AJM

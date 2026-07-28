@@ -124,14 +124,14 @@ export function useInvoices(params?: Record<string, any>) {
 }
 
 export function useInvoiceFilterOptions() {
-  const { data, error, isLoading } = useSWR<{ sales: string[], products: string[], cities: string[] }>(
+  const { data, error, isLoading } = useSWR<{ sales: string[], products: string[], suppliers: string[], cities: string[] }>(
     "/api/invoices/filter-options",
     swrFetcher,
     { revalidateOnFocus: false }
   );
 
   return {
-    options: data || { sales: [], products: [], cities: [] },
+    options: data || { sales: [], products: [], suppliers: ["KOKO SUPPLIER", "MITRA1"], cities: [] },
     isLoading,
     error,
   };

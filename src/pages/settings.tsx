@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { useState, useEffect } from "react";
 import Head from "next/head";
+import Link from "next/link";
 import { useRouter } from "next/router";
 import { AuthGuard } from "@/components/AuthGuard";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -173,6 +174,20 @@ function SettingsPage() {
 
           {activeTab === "shipping" && canManageRoles && (
             <ShippingRatesSection />
+          )}
+
+          {canManageRoles && (
+            <div className="mt-6 pt-6 border-t">
+              <div className="flex items-center justify-between p-4 rounded-xl border bg-card">
+                <div>
+                  <h3 className="font-bold text-sm text-foreground">Pengguna Sistem & Tim Sales</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Kelola pembuatan akun admin, manager, dan tim sales.</p>
+                </div>
+                <Button asChild size="sm" className="font-bold">
+                  <Link href="/tracker/users">Kelola Akun</Link>
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       </div>
