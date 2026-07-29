@@ -140,7 +140,7 @@ export function TagihanView({ invoice, onUpdated }: Props) {
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
           <span className="inline-flex items-center rounded-full bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 text-xs font-bold mb-2">Tagihan</span>
-          <h1 className="text-2xl font-black text-foreground">Nomor Transaksi {invoice.invoice_number}</h1>
+          <h1 className="text-base font-semibold text-foreground">Nomor Transaksi {invoice.invoice_number}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             <span className="font-semibold text-foreground">{invoice.client?.name}</span>
             {invoice.client?.phone && <span> · {invoice.client.phone}</span>}

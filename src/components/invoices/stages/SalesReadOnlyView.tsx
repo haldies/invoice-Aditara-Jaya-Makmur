@@ -27,31 +27,31 @@ export function SalesReadOnlyView({ invoice }: Props) {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-4 space-y-5">
+    <div className="max-w-2xl mx-auto p-3 sm:p-4 space-y-4">
       {/* Status Banner */}
-      <div className="flex items-center gap-3 rounded-2xl px-5 py-4 border bg-slate-50 border-slate-200">
+      <div className="flex items-center gap-3 rounded-2xl px-4 py-3 border bg-white border-slate-200">
         <div>
-          <p className="font-black text-base text-foreground">{statusLabel}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Nomor Transaksi {invoice.invoice_number}</p>
+          <p className="font-bold text-sm sm:text-base text-foreground">{statusLabel}</p>
+          <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 break-all">Nomor Transaksi {invoice.invoice_number}</p>
         </div>
       </div>
 
       {/* Client Info */}
       <div className="bg-card border rounded-xl p-4">
         <h2 className="font-bold text-sm mb-3">Data Pelanggan</h2>
-        <p className="font-semibold text-foreground">{invoice.client?.name}</p>
-        {invoice.client?.company && <p className="text-xs text-muted-foreground">{invoice.client.company}</p>}
-        {invoice.client?.phone && <p className="text-xs text-muted-foreground">{invoice.client.phone}</p>}
-        {invoice.client?.email && <p className="text-xs text-muted-foreground">{invoice.client.email}</p>}
-        {invoice.client?.address && <p className="text-xs text-muted-foreground mt-1">{invoice.client.address}</p>}
+        <p className="font-semibold text-sm sm:text-base text-foreground">{invoice.client?.name}</p>
+        {invoice.client?.company && <p className="text-[11px] sm:text-xs text-muted-foreground">{invoice.client.company}</p>}
+        {invoice.client?.phone && <p className="text-[11px] sm:text-xs text-muted-foreground">{invoice.client.phone}</p>}
+        {invoice.client?.email && <p className="text-[11px] sm:text-xs text-muted-foreground">{invoice.client.email}</p>}
+        {invoice.client?.address && <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">{invoice.client.address}</p>}
         
         {(invoice.notes || invoice.due_date) && (
           <div className="mt-3 pt-3 border-t space-y-1">
             {invoice.due_date && (
-              <p className="text-xs text-muted-foreground"><span className="font-semibold">Tgl Pengiriman:</span> {fmtDateTime(invoice.due_date)}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground"><span className="font-semibold">Tgl Pengiriman:</span> {fmtDateTime(invoice.due_date)}</p>
             )}
             {invoice.notes && (
-              <p className="text-xs text-muted-foreground"><span className="font-semibold">Lokasi:</span> {invoice.notes}</p>
+              <p className="text-[11px] sm:text-xs text-muted-foreground"><span className="font-semibold">Lokasi:</span> {invoice.notes}</p>
             )}
           </div>
         )}
@@ -59,7 +59,7 @@ export function SalesReadOnlyView({ invoice }: Props) {
 
       {/* Products */}
       <div className="bg-card border rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b bg-slate-50">
+        <div className="px-4 py-3 border-b bg-white">
           <h2 className="font-bold text-sm">Produk</h2>
         </div>
         <div className="divide-y">
@@ -68,21 +68,21 @@ export function SalesReadOnlyView({ invoice }: Props) {
             return (
               <div key={idx} className="px-4 py-3 flex items-start justify-between gap-2">
                 <div>
-                  <p className="font-semibold text-sm">{item.description}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="font-semibold text-[13px] sm:text-sm">{item.description}</p>
+                  <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
                     {Number(billedQty).toLocaleString("id-ID")} m³ × {fmt(item.unit_price)}
                     {item.actual_quantity != null && item.actual_quantity !== item.quantity && (
                       <span className="ml-1 text-emerald-600 font-semibold">(Aktual)</span>
                     )}
                   </p>
                 </div>
-                <p className="font-black text-sm shrink-0">{fmt(billedQty * item.unit_price)}</p>
+                <p className="font-black text-[13px] sm:text-sm shrink-0">{fmt(billedQty * item.unit_price)}</p>
               </div>
             );
           })}
         </div>
         
-        <div className="bg-slate-50 border-t p-4 space-y-2 text-sm">
+        <div className="bg-white border-t p-4 space-y-2 text-sm">
           <div className="flex justify-between text-muted-foreground text-xs">
             <span>Subtotal</span><span className="font-semibold text-foreground">{fmt(invoice.subtotal)}</span>
           </div>
@@ -97,29 +97,29 @@ export function SalesReadOnlyView({ invoice }: Props) {
             </div>
           )}
           <div className="flex justify-between items-center pt-2 border-t font-extrabold text-foreground">
-            <span>Total Transaksi</span><span className="text-lg">{fmt(invoice.total)}</span>
+            <span className="text-sm">Total Transaksi</span><span className="text-base sm:text-lg">{fmt(invoice.total)}</span>
           </div>
         </div>
       </div>
 
       {/* Status Message */}
       {invoice.status === "tagihan" && (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-700 font-medium">
+        <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-[11px] sm:text-xs text-slate-700 font-medium">
           Penawaran sudah dikirim dan sedang diproses admin. Hubungi admin untuk konfirmasi lebih lanjut.
         </div>
       )}
       {invoice.status === "po" && (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-700 font-medium">
+        <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-[11px] sm:text-xs text-slate-700 font-medium">
           Purchase Order sudah dibuat. Menunggu jadwal pengiriman.
         </div>
       )}
       {invoice.status === "pengiriman" && (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-700 font-medium">
+        <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-[11px] sm:text-xs text-slate-700 font-medium">
           Barang sedang dalam proses pengiriman ke lokasi.
         </div>
       )}
       {invoice.status === "selesai" && (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-700 font-medium">
+        <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-[11px] sm:text-xs text-slate-700 font-medium">
           Transaksi telah selesai.
         </div>
       )}

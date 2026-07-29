@@ -94,27 +94,27 @@ function SettingsPage() {
       <Head>
         <title>Pengaturan | {APP_NAME}</title>
       </Head>
-      <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-8">
+      <div className="mx-auto max-w-4xl space-y-5 p-4 md:p-8">
 
 
         {/* Clean Underline Tabs */}
-        <div className="flex border-b border-border">
+        <div className="flex border-b border-border overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => setActiveTab("profile")}
-            className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-all ${
+            className={`whitespace-nowrap px-3 py-2 text-sm font-semibold border-b-2 transition-all ${
               activeTab === "profile"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            Akun Saya
+            Akun
           </button>
           {canEditCompanyProfile && (
             <button
               type="button"
               onClick={() => setActiveTab("company")}
-              className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-all ${
+              className={`whitespace-nowrap px-3 py-2 text-sm font-semibold border-b-2 transition-all ${
                 activeTab === "company"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -127,7 +127,7 @@ function SettingsPage() {
             <button
               type="button"
               onClick={() => setActiveTab("shipping")}
-              className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-all ${
+              className={`whitespace-nowrap px-3 py-2 text-sm font-semibold border-b-2 transition-all ${
                 activeTab === "shipping"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -140,26 +140,26 @@ function SettingsPage() {
 
         <div className="w-full">
           {activeTab === "profile" && (
-            <section className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-xl bg-card border p-4 sm:p-6 shadow-sm">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xl">
+            <section className="flex items-center gap-3 rounded-xl bg-card border p-4 shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-sm shrink-0">
                 {user?.email?.charAt(0).toUpperCase() ?? 'U'}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Akun Terhubung</p>
-                <p className="mt-1 truncate text-xl font-semibold text-foreground">{user?.email}</p>
-                <p className="mt-1 text-sm text-muted-foreground capitalize flex items-center gap-1.5">
-                  Peran: <RoleBadge role={user?.role as AppRole} />
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Akun Tersambung</p>
+                <p className="mt-1 truncate text-sm sm:text-base font-semibold text-foreground">{user?.email}</p>
+                <p className="mt-1 text-[11px] sm:text-xs text-muted-foreground capitalize flex items-center gap-1.5">
+                  Peran: <span className="font-semibold text-foreground">{(user?.role || "-").replace(/^./, (c) => c.toUpperCase())}</span>
                 </p>
               </div>
               <Button
-                variant="ghost"
-                className="hover:bg-destructive/10 text-destructive transition-all duration-200 mt-2 sm:mt-0"
+                variant="outline"
+                className="h-9 px-3 text-xs hover:bg-destructive/10 hover:text-destructive transition-all duration-200 shrink-0"
                 onClick={async () => {
                   await signOut();
                   await router.replace("/login");
                 }}
               >
-                <LogOut className="h-4 w-4 mr-2" />
+                <LogOut className="h-3.5 w-3.5 mr-1.5" />
                 Keluar
               </Button>
             </section>
@@ -176,14 +176,14 @@ function SettingsPage() {
           )}
 
           {canManageRoles && (
-            <div className="mt-6 pt-6 border-t">
-              <div className="flex items-center justify-between p-4 border bg-white">
+            <div className="mt-5 pt-5 border-t">
+              <div className="flex items-center justify-between gap-3 p-4 border bg-white rounded-xl">
                 <div>
-                  <h3 className="font-bold text-sm text-foreground">Pengguna Sistem</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">Kelola akun admin dan tim sales.</p>
+                  <h3 className="font-semibold text-sm text-foreground">Pengguna Sistem</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Akun admin dan sales.</p>
                 </div>
-                <Button asChild size="sm" variant="outline" className="font-bold">
-                  <Link href="/tracker/users">Kelola Akun</Link>
+                <Button asChild size="sm" variant="outline" className="font-semibold h-9 px-3 shrink-0">
+                  <Link href="/tracker/users">Kelola</Link>
                 </Button>
               </div>
             </div>
@@ -197,7 +197,7 @@ function SettingsPage() {
 SettingsPage.getLayout = function getLayout(page: ReactElement) {
   return (
     <AuthGuard>
-      <AppLayout title="Settings">
+      <AppLayout title="Pengaturan">
         {page}
       </AppLayout>
     </AuthGuard>

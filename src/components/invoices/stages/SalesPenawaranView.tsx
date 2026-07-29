@@ -164,29 +164,31 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-4 space-y-5 pb-28">
+    <div className="max-w-2xl mx-auto p-3 sm:p-4 space-y-4 pb-28">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Penawaran</p>
-          <h1 className="text-xl font-black text-foreground mt-0.5">Nomor Transaksi {invoice.invoice_number}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h1 className="text-base sm:text-lg font-bold text-foreground mt-0.5 break-all leading-tight">
+            Nomor Transaksi {invoice.invoice_number}
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
             Pelanggan: <span className="font-semibold text-foreground">{invoice.client?.name || "-"}</span>
           </p>
           {invoice.client?.phone && (
             <p className="text-xs text-muted-foreground">{invoice.client.phone}</p>
           )}
         </div>
-        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700 border">
+        <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-[10px] sm:text-xs font-bold text-slate-700 border border-slate-200 shrink-0">
           Penawaran
         </span>
       </div>
 
       {/* Products */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="font-bold text-sm text-foreground">Daftar Produk</h2>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button
               type="button"
               variant="outline"
@@ -268,7 +270,7 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
                   value={item.description}
                   onChange={(e) => updateItem(idx, "description", e.target.value)}
                   placeholder="Nama produk..."
-                  className="h-8 text-xs font-semibold border-slate-200"
+                  className="h-8 text-[11px] sm:text-xs font-semibold border-slate-200"
                 />
               </div>
               
@@ -282,7 +284,7 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
                     step="any"
                     value={item.quantity}
                     onChange={(e) => updateItem(idx, "quantity", e.target.value)}
-                    className="h-8 w-20 sm:w-full text-center text-xs font-bold border-slate-200 px-1"
+                    className="h-8 w-20 sm:w-full text-center text-[11px] sm:text-xs font-bold border-slate-200 px-1"
                   />
                 </div>
                 {/* Harga */}
@@ -293,7 +295,7 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
                     min="0"
                     value={item.unit_price}
                     onChange={(e) => updateItem(idx, "unit_price", e.target.value)}
-                    className="h-8 w-28 sm:w-full text-right text-xs font-bold border-slate-200 px-1.5"
+                    className="h-8 w-28 sm:w-full text-right text-[11px] sm:text-xs font-bold border-slate-200 px-1.5"
                   />
                 </div>
               </div>
@@ -312,7 +314,7 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
 
         {/* Total */}
         {items.length > 0 && (
-          <div className="bg-slate-50 dark:bg-slate-900/40 border p-4 space-y-2 text-sm rounded-xl">
+          <div className="bg-white border p-4 space-y-2 text-sm rounded-xl">
             <div className="flex justify-between text-muted-foreground text-xs">
               <span>Subtotal</span><span className="font-semibold text-foreground">{fmt(subtotal)}</span>
             </div>
@@ -339,14 +341,14 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
       </div>
 
       {/* Actions - sticky bottom bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t shadow-lg px-4 py-3 flex gap-2 z-50 max-w-2xl mx-auto">
+      <div className="fixed bottom-0 left-0 right-0 bg-background border-t shadow-lg px-3 sm:px-4 py-3 flex gap-2 z-50 max-w-2xl mx-auto">
         {/* Save */}
         <Button
           type="button"
           onClick={() => save()}
           disabled={isSaving}
           variant="outline"
-          className="flex-1 h-11 font-bold text-xs"
+          className="flex-1 h-11 font-bold text-[11px] sm:text-xs"
         >
           <Save className="h-4 w-4 mr-1.5" />
           {isSaving ? "Menyimpan..." : "Simpan"}
@@ -358,14 +360,14 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
           icon={FileText}
           isLoading={isPdfLoading}
           onAction={downloadQuotation}
-          className="h-10 text-xs font-bold gap-2 text-slate-700 bg-white"
+          className="h-10 text-[11px] sm:text-xs font-bold gap-2 text-slate-700 bg-white"
         />
         <PdfActionButton
           label="Invoice"
           icon={Receipt}
           isLoading={isPdfLoading}
           onAction={downloadInvoice}
-          className="h-10 text-xs font-bold gap-2 border-primary text-primary hover:bg-primary/10 bg-white"
+          className="h-10 text-[11px] sm:text-xs font-bold gap-2 border-primary text-primary hover:bg-primary/10 bg-white"
         />
 
         {/* Menunggu PO */}
@@ -373,7 +375,7 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
           <AlertDialogTrigger asChild>
             <Button
               type="button"
-              className="h-11 font-bold text-xs px-4 bg-primary text-primary-foreground hover:bg-primary/90"
+              className="h-11 font-bold text-[11px] sm:text-xs px-4 bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={isSaving || items.filter((i) => i.description.trim()).length === 0}
             >
               Menunggu PO

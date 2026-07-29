@@ -163,9 +163,9 @@ export function InvoiceList() {
   const isRestrictedUser = user?.role === "user" || user?.role === "sales";
 
   return (
-    <div className="space-y-6 p-4 md:p-6 max-w-6xl mx-auto">
+    <div className="space-y-5 p-3 sm:p-4 md:p-6 max-w-6xl mx-auto">
       {/* Controls & Filter Bar */}
-      <div className="flex flex-col gap-4 bg-card p-4 rounded-xl border shadow-xs">
+      <div className="flex flex-col gap-4 bg-card p-3 sm:p-4 rounded-xl border shadow-xs">
         {/* Row 1: Search */}
         <div className="flex items-center gap-2">
           <div className="flex-1 relative">
@@ -174,7 +174,7 @@ export function InvoiceList() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Cari invoice, pelanggan, proyek, atau kota/lokasi..."
-              className="pl-9 h-10 text-xs w-full"
+              className="pl-9 h-10 text-[11px] sm:text-xs w-full"
             />
           </div>
         </div>
@@ -183,7 +183,7 @@ export function InvoiceList() {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 border-t pt-3">
           {/* Periode Tanggal Dropdown */}
           <Select value={dateRangePreset} onValueChange={handleDatePresetChange}>
-            <SelectTrigger className="h-9 text-xs font-semibold">
+            <SelectTrigger className="h-9 text-[11px] sm:text-xs font-semibold">
               <SelectValue placeholder="Semua Periode" />
             </SelectTrigger>
             <SelectContent>
@@ -197,7 +197,7 @@ export function InvoiceList() {
 
           {/* Status Pembayaran */}
           <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-            <SelectTrigger className="h-9 text-xs font-semibold">
+            <SelectTrigger className="h-9 text-[11px] sm:text-xs font-semibold">
               <SelectValue placeholder="Semua Pembayaran" />
             </SelectTrigger>
             <SelectContent>
@@ -208,7 +208,7 @@ export function InvoiceList() {
           </Select>
           {/* Urutan (Transaksi Tinggi/Kecil) */}
           <Select value={sortOrder} onValueChange={setSortOrder}>
-            <SelectTrigger className="h-9 text-xs font-semibold">
+            <SelectTrigger className="h-9 text-[11px] sm:text-xs font-semibold">
               <SelectValue placeholder="Urutan" />
             </SelectTrigger>
             <SelectContent>
@@ -222,7 +222,7 @@ export function InvoiceList() {
           {/* Filter Sales */}
           {!isRestrictedUser && filterOptions.sales.length > 0 && (
             <Select value={salesFilter} onValueChange={setSalesFilter}>
-              <SelectTrigger className="h-9 text-xs font-semibold">
+              <SelectTrigger className="h-9 text-[11px] sm:text-xs font-semibold">
                 <SelectValue placeholder="Semua Sales" />
               </SelectTrigger>
               <SelectContent>
@@ -238,7 +238,7 @@ export function InvoiceList() {
 
           {/* Filter Pelanggan */}
           <Select value={clientFilter} onValueChange={setClientFilter}>
-            <SelectTrigger className="h-9 text-xs font-semibold">
+            <SelectTrigger className="h-9 text-[11px] sm:text-xs font-semibold">
               <SelectValue placeholder="Semua Pelanggan" />
             </SelectTrigger>
             <SelectContent>
@@ -253,7 +253,7 @@ export function InvoiceList() {
 
           {/* Filter Supplier */}
           <Select value={supplierFilter} onValueChange={setSupplierFilter}>
-            <SelectTrigger className="h-9 text-xs font-semibold">
+            <SelectTrigger className="h-9 text-[11px] sm:text-xs font-semibold">
               <SelectValue placeholder="Semua Supplier" />
             </SelectTrigger>
             <SelectContent>
@@ -303,7 +303,7 @@ export function InvoiceList() {
 
         {/* Row 2: Underline Category Tabs */}
         <div className="border-t border-slate-100 dark:border-slate-800 pt-3">
-          <div className="flex gap-6 overflow-x-auto no-scrollbar pb-0.5 scroll-smooth">
+          <div className="flex gap-4 sm:gap-5 overflow-x-auto no-scrollbar pb-1 scroll-smooth">
             {[
               { value: "all", label: "Semua" },
               { value: "penawaran,tagihan", label: "Menunggu PO" },
@@ -317,10 +317,10 @@ export function InvoiceList() {
                 <button
                   key={tab.value}
                   onClick={() => setStatusFilter(tab.value)}
-                  className={`whitespace-nowrap pb-2 text-xs font-extrabold transition-all relative ${
+                  className={`whitespace-nowrap pb-2.5 pt-0.5 text-[11px] sm:text-xs font-semibold transition-all border-b-2 leading-none ${
                     isActive
-                      ? "text-primary border-b-2 border-primary"
-                      : "text-muted-foreground border-b-2 border-transparent hover:text-foreground"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {tab.label}
@@ -402,14 +402,14 @@ export function InvoiceList() {
                   {/* Mid Bar: Invoice & Customer vs Total & Sisa */}
                   <div className="flex items-start justify-between gap-3 mb-2.5">
                     <div className="min-w-0">
-                      <h4 className="font-extrabold text-xs text-foreground truncate group-hover:text-primary transition-colors">
+                      <h4 className="font-bold text-[11px] sm:text-xs text-foreground truncate group-hover:text-primary transition-colors">
                         {invoice.invoice_number.replace(/^INV-/, "TRX-").replace(/^INV\//, "TRX/")}
                       </h4>
-                      <p className="text-[11px] text-slate-700 dark:text-slate-300 font-semibold truncate mt-0.5">
+                      <p className="text-[11px] text-slate-700 dark:text-slate-300 font-medium truncate mt-0.5">
                         {invoice.client.company || invoice.client.name}
                       </p>
                       {invoice.client.company && (
-                        <p className="text-[9px] text-muted-foreground truncate">{invoice.client.name}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{invoice.client.name}</p>
                       )}
                     </div>
                     

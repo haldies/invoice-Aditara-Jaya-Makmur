@@ -19,8 +19,8 @@ function TrackerDashboardPage() {
 
   if (loading || (user && user.role === "sales")) {
     return (
-      <div className="p-8 text-center text-sm text-muted-foreground">
-        Memuat...
+      <div className="grid min-h-[40vh] place-items-center">
+        <img src="/logo.png" alt="Logo aplikasi" className="h-14 w-14 object-contain" />
       </div>
     );
   }

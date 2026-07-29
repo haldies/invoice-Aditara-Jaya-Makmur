@@ -259,16 +259,15 @@ function PresetItemPage() {
         <title>Daftar Produk | {APP_NAME}</title>
       </Head>
       <div className="mx-auto max-w-4xl space-y-4 p-4 md:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Katalog Produk & Mitra Supplier</h1>
-            <p className="text-xs text-muted-foreground">Kelola produk unik serta penawaran opsi supplier</p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-foreground leading-tight">Daftar Produk</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Button
               size="sm"
               onClick={() => openPresetDialog()}
-              className="flex items-center gap-1.5 font-semibold"
+              className="flex items-center gap-1.5 font-semibold h-9 px-3"
             >
               <Plus className="h-4 w-4" />
               Tambah Produk
@@ -288,74 +287,71 @@ function PresetItemPage() {
           />
         </div>
 
-        {/* Filter Kategori & Sorting Bar */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 border-b pb-3">
-          {/* Tabs Kategori */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-            <button
-              type="button"
-              onClick={() => setFilterCategory("ALL")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                filterCategory === "ALL"
-                  ? "bg-primary text-primary-foreground font-bold"
-                  : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              }`}
-            >
-              Semua ({groupedProducts.length} Produk)
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterCategory("BETON")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                filterCategory === "BETON"
-                  ? "bg-primary text-primary-foreground font-bold"
-                  : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              }`}
-            >
-              BETON ({groupedProducts.filter(g => g.category === "BETON").length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterCategory("BESI")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                filterCategory === "BESI"
-                  ? "bg-primary text-primary-foreground font-bold"
-                  : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              }`}
-            >
-              BESI ({groupedProducts.filter(g => g.category === "BESI").length})
-            </button>
-          </div>
+        {/* Filter Supplier & Sort Select Dropdowns */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={filterSupplier} onValueChange={setFilterSupplier}>
+            <SelectTrigger className="h-8 text-xs font-semibold w-[140px] bg-white">
+              <SelectValue placeholder="Semua Supplier" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Semua Supplier</SelectItem>
+              {uniqueSuppliers.map((sup) => (
+                <SelectItem key={sup} value={sup}>
+                  {sup}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          {/* Filter Supplier & Sort Select Dropdowns */}
-          <div className="flex items-center gap-2">
-            <Select value={filterSupplier} onValueChange={setFilterSupplier}>
-              <SelectTrigger className="h-8 text-xs font-semibold w-[140px]">
-                <SelectValue placeholder="Semua Supplier" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Semua Supplier</SelectItem>
-                {uniqueSuppliers.map((sup) => (
-                  <SelectItem key={sup} value={sup}>
-                    {sup}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <Select value={sortOption} onValueChange={setSortOption}>
+            <SelectTrigger className="h-8 text-xs font-semibold w-[150px] bg-white">
+              <SelectValue placeholder="Urutan Produk" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Default</SelectItem>
+              <SelectItem value="PRICE_HIGH">Harga Tertinggi</SelectItem>
+              <SelectItem value="PRICE_LOW">Harga Terendah</SelectItem>
+              <SelectItem value="POPULAR_HIGH">Terlaris (Paling Banyak)</SelectItem>
+              <SelectItem value="POPULAR_LOW">Kurang Laris</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-            <Select value={sortOption} onValueChange={setSortOption}>
-              <SelectTrigger className="h-8 text-xs font-semibold w-[150px]">
-                <SelectValue placeholder="Urutan Produk" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Default</SelectItem>
-                <SelectItem value="PRICE_HIGH">Harga Tertinggi</SelectItem>
-                <SelectItem value="PRICE_LOW">Harga Terendah</SelectItem>
-                <SelectItem value="POPULAR_HIGH">Terlaris (Paling Banyak)</SelectItem>
-                <SelectItem value="POPULAR_LOW">Kurang Laris</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        {/* Tabs Kategori */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
+          <button
+            type="button"
+            onClick={() => setFilterCategory("ALL")}
+            className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
+              filterCategory === "ALL"
+                ? "border-primary text-primary bg-white shadow-sm"
+                : "border-slate-200 text-muted-foreground bg-white hover:border-slate-300 hover:text-foreground"
+            }`}
+          >
+            Semua
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterCategory("BETON")}
+            className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
+              filterCategory === "BETON"
+                ? "border-primary text-primary bg-white shadow-sm"
+                : "border-slate-200 text-muted-foreground bg-white hover:border-slate-300 hover:text-foreground"
+            }`}
+          >
+            BETON
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterCategory("BESI")}
+            className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
+              filterCategory === "BESI"
+                ? "border-primary text-primary bg-white shadow-sm"
+                : "border-slate-200 text-muted-foreground bg-white hover:border-slate-300 hover:text-foreground"
+            }`}
+          >
+            BESI
+          </button>
         </div>
 
         <div className="relative w-full overflow-auto rounded-xl border bg-card shadow-xs">

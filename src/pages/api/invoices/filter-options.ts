@@ -14,57 +14,63 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // To build the filter options accurately based on actual data
-  // We'll fetch the necessary fields from all invoices/items 
-  // depending on the user role (owner/admin sees all, sales sees only their own).
-  
   const isGlobal = user.role === "admin" || user.role === "owner" || user.role === "manager";
-  
   const where = isGlobal ? {} : { user_id: user.id };
 
-  const invoices = await prisma.invoice.findMany({
-    where,
-    select: {
-      user: { select: { email: true } },
-      client: { select: { address: true, province: true, city: true, district: true, postal_code: true } },
-      notes: true,
-      items: { select: { description: true } }
-    }
-  });
-
-  const clients = await prisma.client.findMany({
-    where,
-    select: { address: true, province: true, city: true, district: true, postal_code: true }
-  });
+  const [salesRows, productRows, clientRows, supplierRows] = await Promise.all([
+    prisma.invoice.findMany({
+      where,
+      distinct: ["user_id"],
+      select: { user: { select: { email: true } } },
+      orderBy: { created_at: "desc" },
+    }),
+    prisma.invoiceItem.findMany({
+      where: { invoice: where as any },
+      distinct: ["description"],
+      select: { description: true },
+      orderBy: { description: "asc" },
+    }),
+    prisma.client.findMany({
+      where,
+      distinct: ["province", "city", "district", "postal_code", "address"],
+      select: { province: true, city: true, district: true, postal_code: true, address: true },
+      orderBy: { created_at: "desc" },
+    }),
+    prisma.invoiceItem.findMany({
+      where: { invoice: where as any },
+      distinct: ["supplier"],
+      select: { supplier: true },
+      orderBy: { supplier: "asc" },
+    }),
+  ]);
 
   const salesSet = new Set<string>();
   const productSet = new Set<string>();
   const citySet = new Set<string>();
+  const supplierSet = new Set<string>();
 
-  invoices.forEach((inv) => {
-    if (inv.user?.email) salesSet.add(inv.user.email);
-    
-    inv.items.forEach((item) => {
-      const name = (item.description || "").split("-")[0].trim();
-      if (name) productSet.add(name);
-    });
-
-    const addr = [inv.client?.province, inv.client?.city, inv.client?.district, inv.client?.postal_code, inv.client?.address]
-      .filter((part) => part && part.trim())
-      .join(", ");
-    const notes = inv.notes || "";
-    if (addr.trim()) citySet.add(addr.trim());
-    if (notes.trim()) citySet.add(notes.trim());
+  salesRows.forEach((row) => {
+    if (row.user?.email) salesSet.add(row.user.email);
   });
 
-  clients.forEach((c) => {
+  productRows.forEach((item) => {
+    const name = (item.description || "").split("-")[0].trim();
+    if (name) productSet.add(name);
+  });
+
+  clientRows.forEach((c) => {
     const location = [c.province, c.city, c.district, c.postal_code, c.address]
       .filter((part) => part && part.trim())
       .join(", ");
     if (location.trim()) citySet.add(location.trim());
   });
 
-  const suppliers = ["KOKO SUPPLIER", "MITRA1"];
+  supplierRows.forEach((item) => {
+    if (item.supplier) supplierSet.add(item.supplier);
+  });
+
+  const suppliers = Array.from(supplierSet).sort();
+  if (suppliers.length === 0) suppliers.push("KOKO SUPPLIER", "MITRA1");
 
   return res.status(200).json({
     sales: Array.from(salesSet).sort(),

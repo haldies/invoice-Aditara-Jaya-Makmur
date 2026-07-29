@@ -34,10 +34,8 @@ function InvoiceDetailPage() {
 
   if (isLoading || !currentInvoice || !user) {
     return (
-      <div className="grid gap-3 p-4 md:p-5">
-        <div className="h-12 animate-pulse rounded-xl bg-muted" />
-        <div className="h-64 animate-pulse rounded-xl bg-muted" />
-        <div className="h-40 animate-pulse rounded-xl bg-muted" />
+      <div className="grid place-items-center p-8 min-h-[50vh]">
+        <img src="/logo.png" alt="Logo aplikasi" className="h-14 w-14 object-contain" />
       </div>
     );
   }
