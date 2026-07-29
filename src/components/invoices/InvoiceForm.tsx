@@ -49,7 +49,7 @@ function todayDateTime() {
 
 function defaultInvoiceNumber() {
   const stamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
-  return `INV-${stamp}-${Math.floor(Math.random() * 900 + 100)}`;
+  return `TRX-${stamp}-${Math.floor(Math.random() * 900 + 100)}`;
 }
 
 function toItemInput(item: Invoice["items"][number]): InvoiceItemInput {
@@ -387,6 +387,16 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
     for (const item of form.items) {
       if (!item.description.trim()) continue;
       const matchedPreset = presetItems.find(p => item.description.toLowerCase().includes(p.name.toLowerCase()));
+      const salePrice = Number(item.unit_price || 0);
+      const buyInPrice = Number(item.buy_in_price || 0);
+      if (salePrice > 0 && buyInPrice > 0 && buyInPrice >= salePrice) {
+        toast({
+          title: "Harga HPP Tidak Valid",
+          description: `HPP untuk "${item.description}" harus lebih kecil dari harga jual. Harga jual: Rp ${salePrice.toLocaleString("id-ID")}, HPP: Rp ${buyInPrice.toLocaleString("id-ID")}.`,
+          variant: "destructive",
+        });
+        return;
+      }
       if (matchedPreset && item.buy_in_price > 0 && matchedPreset.buy_in_price > 0 && item.buy_in_price < matchedPreset.buy_in_price) {
         toast({
           title: "Harga Modal Terlalu Rendah",
@@ -473,13 +483,13 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
     }
   };
 
-  const currentStageIndex = ["penawaran", "po", "pengiriman", "tagihan", "selesai"].indexOf(form.status || "penawaran");
+  const currentStageIndex = ["penawaran", "po", "tagihan", "selesai"].indexOf(form.status || "penawaran");
   const canEditStatus = isAdmin;
   // Sales bisa buat/edit di tahap penawaran dan tagihan
   const salesCanEdit = isSales && (form.status === "penawaran" || form.status === "tagihan");
   const canEditItems = (isAdmin && form.status === "penawaran") || salesCanEdit;
   const canEditQty = canEditItems;
-  const canEditActualQty = isAdmin && form.status === "pengiriman";
+  const canEditActualQty = false;
   const canEditBuyIn = isAdmin && (form.status === "tagihan" || form.status === "po");
 
   return (
@@ -750,7 +760,12 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                                 setForm((cur) => ({
                                   ...cur,
                                   items: cur.items.map((it, i) => 
-                                    i === index ? { ...it, description: desc, ajm_price: sel.ajm_price || 0 } : it
+                                    i === index ? {
+                                      ...it,
+                                      description: desc,
+                                      ajm_price: Number(sel.ajm_price || sel.unit_price || 0),
+                                      buy_in_price: Number(sel.buy_in_price || 0),
+                                    } : it
                                   ),
                                 }));
                               }
@@ -768,7 +783,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                         <div className={isSales ? "space-y-1" : ""}>
                           {isSales && <Label className="text-[10px] text-muted-foreground uppercase">Qty / Volume</Label>}
                           {canEditItems ? (
-                            <Input type="number" min="0" step="any" placeholder="0" value={item.quantity}
+                      <Input type="number" inputMode="decimal" min="0" step="any" placeholder="0" value={item.quantity}
                               onChange={(e) => updateItem(index, "quantity", e.target.value)}
                               className="h-9 text-center text-xs px-1 border-slate-200" />
                           ) : (
@@ -819,7 +834,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                           {/* Harga AJM (Net) */}
                           <div className={isSales ? "hidden" : ""}>
                             {canEditBuyIn ? (
-                              <Input type="number" min="0" placeholder="0"
+                          <Input type="number" inputMode="numeric" pattern="[0-9]*" min="0" placeholder="0"
                                 value={item.ajm_price ?? item.unit_price ?? ""}
                                 onChange={(e) => updateItem(index, "ajm_price", e.target.value ? Number(e.target.value) : 0)}
                                 className="h-9 text-right text-xs px-1.5 border-blue-200 bg-blue-50/50"
@@ -835,7 +850,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                           {/* Buy In */}
                           <div>
                             {canEditBuyIn ? (
-                              <Input type="number" min="0" placeholder="0"
+                            <Input type="number" inputMode="numeric" pattern="[0-9]*" min="0" placeholder="0"
                                 value={item.buy_in_price || ""}
                                 onChange={(e) => updateItem(index, "buy_in_price", e.target.value ? Number(e.target.value) : 0)}
                                 className="h-9 text-right text-xs px-1.5 border-orange-200 bg-orange-50/50"
@@ -854,7 +869,7 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                       <div className={isSales ? "space-y-1" : ""}>
                         {isSales && <Label className="text-[10px] text-muted-foreground uppercase">Harga Satuan (Rp)</Label>}
                         {canEditItems ? (
-                          <Input type="number" min="0" value={item.unit_price}
+                          <Input type="number" inputMode="numeric" pattern="[0-9]*" min="0" value={item.unit_price}
                             onChange={(e) => updateItem(index, "unit_price", e.target.value)}
                             className="h-9 text-right text-xs px-1.5 border-slate-200"
                           />
@@ -923,7 +938,21 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                   {(isAdmin || salesCanEdit) && (
                     <button type="button" onClick={() => {
                       setManualClient(!manualClient);
-                      setForm((prev) => ({ ...prev, client_id: null, client: { name: "", email: "", phone: "", address: "" } }));
+                      setForm((prev) => ({
+                        ...prev,
+                        client_id: null,
+                        client: {
+                          name: "",
+                          email: "",
+                          phone: "",
+                          company: "",
+                          address: "",
+                          province: "",
+                          city: "",
+                          district: "",
+                          postal_code: "",
+                        },
+                      }));
                     }} className="text-xs text-primary hover:underline font-semibold">
                       {manualClient ? "Pilih dari Daftar" : "Tambah Pelanggan Baru"}
                     </button>
@@ -979,7 +1008,17 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                         const c = clients.find((x) => x.id === val);
                         if (c) setForm((prev) => ({
                           ...prev, client_id: c.id,
-                          client: { name: c.name, email: c.email ?? "", phone: c.phone ?? "", company: c.company ?? "", address: c.address ?? "" },
+                          client: {
+                            name: c.name,
+                            email: c.email ?? "",
+                            phone: c.phone ?? "",
+                            company: c.company ?? "",
+                            address: c.address ?? "",
+                            province: c.province ?? "",
+                            city: c.city ?? "",
+                            district: c.district ?? "",
+                            postal_code: c.postal_code ?? "",
+                          },
                         }));
                       }}>
                         <SelectTrigger className="w-full h-10 mt-1">
@@ -1002,7 +1041,6 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                     </Label>
                     <Input id="due_date" type="datetime-local" value={form.due_date ?? ""}
                       onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-                      readOnly={isSales}
                       className="h-10 mt-1.5"
                     />
                   </div>
@@ -1233,8 +1271,8 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                         <Download className="mr-1 h-3.5 w-3.5 shrink-0" /> Cetak Invoice
                       </Button>
                       {isAdmin && (
-                        <Button type="button" onClick={() => { setForm({ ...form, status: "po" }); setTimeout(() => document.querySelector("form")?.requestSubmit(), 100); }} disabled={isSaving} className="font-bold h-9 text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-2">
-                          Ke PO &rarr;
+                        <Button type="button" onClick={() => { setForm({ ...form, status: "pengiriman" }); setTimeout(() => document.querySelector("form")?.requestSubmit(), 100); }} disabled={isSaving} className="font-bold h-9 text-xs bg-blue-600 hover:bg-blue-700 text-white px-2">
+                          Ke Pengiriman &rarr;
                         </Button>
                       )}
                     </>
@@ -1242,16 +1280,13 @@ export function InvoiceForm({ invoice }: { invoice?: Invoice }) {
                   {form.status === "po" && isAdmin && (
                     <div className="col-span-2 flex flex-col gap-2">
                       <div className="grid grid-cols-2 gap-2">
-                        <Button type="button" variant="outline" onClick={() => handleDirectPrint("po")} disabled={isGeneratingPDF} className="font-bold h-9 text-xs border-indigo-600 text-indigo-600 hover:bg-indigo-50 px-2 truncate">
-                          <Download className="mr-1 h-3.5 w-3.5 shrink-0" /> Cetak PO
-                        </Button>
                         <Button type="button" variant="outline" onClick={() => handleDirectPrint("invoice")} disabled={isGeneratingPDF} className="font-bold h-9 text-xs border-amber-600 text-amber-600 hover:bg-amber-50 px-2 truncate">
                           <Download className="mr-1 h-3.5 w-3.5 shrink-0" /> Cetak Invoice
                         </Button>
+                        <Button type="button" onClick={() => { setForm({ ...form, status: "pengiriman" }); setTimeout(() => document.querySelector("form")?.requestSubmit(), 100); }} disabled={isSaving} className="font-bold h-9 text-xs bg-blue-600 hover:bg-blue-700 text-white px-2">
+                          Input Pengiriman &rarr;
+                        </Button>
                       </div>
-                      <Button type="button" onClick={() => { setForm({ ...form, status: "pengiriman" }); setTimeout(() => document.querySelector("form")?.requestSubmit(), 100); }} disabled={isSaving} className="font-bold h-9 text-xs bg-blue-600 hover:bg-blue-700 text-white w-full">
-                        Ke Pengiriman &rarr;
-                      </Button>
                     </div>
                   )}
                   {form.status === "pengiriman" && isAdmin && (

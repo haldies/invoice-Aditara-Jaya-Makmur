@@ -1,9 +1,9 @@
 /**
  * POView – Admin view untuk tahap Purchase Order
- * Review produk & HPP, cetak PO/Invoice, lanjut ke Pengiriman.
+ * Review produk & HPP, cetak PO/Invoice, lalu langsung selesaikan transaksi jika sudah final.
  */
 import { useState } from "react";
-import { ArrowRight, Save, ShoppingCart, FileText } from "lucide-react";
+import { ShoppingCart, FileText } from "lucide-react";
 import { PdfAction } from "@/lib/pdfExport";
 import { PdfActionButton } from "./PdfActionButton";
 import { Invoice } from "@/types/invoice";
@@ -13,10 +13,6 @@ import { fmt, fmtDate, handleDownloadPDF, handlePdfAction, calcMargin } from "./
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 interface Props {
   invoice: Invoice;
@@ -25,22 +21,18 @@ interface Props {
 
 export function POView({ invoice, onUpdated }: Props) {
   const { updateInvoice } = useInvoices();
-  const [isSaving, setIsSaving] = useState(false);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
 
   const margin = calcMargin(invoice);
   const includePpn = Math.abs((invoice.tax || 0) - invoice.subtotal * 0.11) < 100 && (invoice.tax || 0) > 0;
 
-  const advance = async (status: string) => {
-    setIsSaving(true);
+  const finish = async () => {
     try {
-      const payload: any = { status: status as any, version: invoice.version };
+      const payload: any = { status: "selesai", version: invoice.version };
       const updated = await updateInvoice(invoice.id, payload);
       onUpdated(updated);
     } catch (e: any) {
       alert(e?.message || "Gagal memperbarui status");
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -55,7 +47,7 @@ export function POView({ invoice, onUpdated }: Props) {
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <span className="inline-flex items-center rounded-full bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 text-xs font-bold mb-2">Purchase Order</span>
-          <h1 className="text-2xl font-black text-foreground">{invoice.invoice_number}</h1>
+          <h1 className="text-2xl font-black text-foreground">Nomor Transaksi {invoice.invoice_number}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             <span className="font-semibold text-foreground">{invoice.client?.name}</span>
             {invoice.client?.phone && <span> · {invoice.client.phone}</span>}
@@ -155,27 +147,9 @@ export function POView({ invoice, onUpdated }: Props) {
       </div>
 
       {/* Advance */}
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button type="button" className="w-full h-12 font-bold text-sm" disabled={isSaving}>
-            Lanjut ke Pengiriman
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Konfirmasi ke Pengiriman?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Transaksi akan dipindahkan ke tahap Pengiriman. Pastikan Tanggal Pengiriman sudah diisi jika diperlukan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={() => advance("pengiriman")} className="bg-primary hover:bg-primary/90 text-primary-foreground">
-              Ya, Mulai Pengiriman
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <Button type="button" className="w-full h-12 font-bold text-sm" onClick={finish}>
+        Selesaikan Transaksi
+      </Button>
     </div>
   );
 }

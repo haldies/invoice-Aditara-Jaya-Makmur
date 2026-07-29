@@ -77,6 +77,7 @@ export interface Invoice {
   fee: number;   // Fee/biaya tambahan (dikurangi dari margin, bukan dari total customer)
   total: number;
   amount_paid: number;
+  payment_history?: PaymentHistoryEntry[];
   notes: string | null;
   terms: string | null;
   template_id: string | null;
@@ -89,6 +90,17 @@ export interface Invoice {
     email: string | null;
     phone: string | null;
   };
+}
+
+export interface PaymentHistoryEntry {
+  id: string;
+  amount: number;
+  paid_at: string;
+  created_at: string;
+  updated_at?: string | null;
+  deleted_at?: string | null;
+  deleted_reason?: string | null;
+  edited_from_amount?: number | null;
 }
 
 export type InvoiceItemInput = Pick<

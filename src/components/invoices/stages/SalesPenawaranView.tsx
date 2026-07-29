@@ -169,7 +169,7 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
       <div className="flex items-start justify-between">
         <div>
           <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Penawaran</p>
-          <h1 className="text-xl font-black text-foreground mt-0.5">{invoice.invoice_number}</h1>
+          <h1 className="text-xl font-black text-foreground mt-0.5">Nomor Transaksi {invoice.invoice_number}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Pelanggan: <span className="font-semibold text-foreground">{invoice.client?.name || "-"}</span>
           </p>
@@ -368,7 +368,7 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
           className="h-10 text-xs font-bold gap-2 border-primary text-primary hover:bg-primary/10 bg-white"
         />
 
-        {/* Jadikan Tagihan */}
+        {/* Menunggu PO */}
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button
@@ -376,15 +376,15 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
               className="h-11 font-bold text-xs px-4 bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={isSaving || items.filter((i) => i.description.trim()).length === 0}
             >
-              Tagihan
+              Menunggu PO
               <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Jadikan Tagihan?</AlertDialogTitle>
+              <AlertDialogTitle>Jadikan Menunggu PO?</AlertDialogTitle>
               <AlertDialogDescription>
-                Transaksi ini akan dipindahkan ke tahap Tagihan dan diteruskan ke admin untuk proses selanjutnya.
+                Transaksi ini akan dipindahkan ke tahap Menunggu PO dan diteruskan ke admin untuk proses selanjutnya.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -393,7 +393,7 @@ export function SalesPenawaranView({ invoice, onUpdated }: Props) {
                 onClick={() => save("tagihan")}
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
-                Ya, Jadikan Tagihan
+                Ya, Jadikan Menunggu PO
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

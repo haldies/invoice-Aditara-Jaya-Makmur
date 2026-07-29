@@ -26,7 +26,7 @@ export default async function handler(
     where,
     select: {
       user: { select: { email: true } },
-      client: { select: { address: true } },
+      client: { select: { address: true, province: true, city: true, district: true, postal_code: true } },
       notes: true,
       items: { select: { description: true } }
     }
@@ -34,7 +34,7 @@ export default async function handler(
 
   const clients = await prisma.client.findMany({
     where,
-    select: { address: true }
+    select: { address: true, province: true, city: true, district: true, postal_code: true }
   });
 
   const salesSet = new Set<string>();
@@ -49,14 +49,19 @@ export default async function handler(
       if (name) productSet.add(name);
     });
 
-    const addr = inv.client?.address || "";
+    const addr = [inv.client?.province, inv.client?.city, inv.client?.district, inv.client?.postal_code, inv.client?.address]
+      .filter((part) => part && part.trim())
+      .join(", ");
     const notes = inv.notes || "";
     if (addr.trim()) citySet.add(addr.trim());
     if (notes.trim()) citySet.add(notes.trim());
   });
 
   clients.forEach((c) => {
-    if (c.address?.trim()) citySet.add(c.address.trim());
+    const location = [c.province, c.city, c.district, c.postal_code, c.address]
+      .filter((part) => part && part.trim())
+      .join(", ");
+    if (location.trim()) citySet.add(location.trim());
   });
 
   const suppliers = ["KOKO SUPPLIER", "MITRA1"];

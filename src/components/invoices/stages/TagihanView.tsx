@@ -5,6 +5,7 @@
 import { useState, useMemo } from "react";
 import { Invoice, InvoiceItemInput } from "@/types/invoice";
 import { useInvoices } from "@/hooks/useInvoices";
+import { useToast } from "@/hooks/use-toast";
 import { loadCompanyProfile } from "@/lib/companyProfile";
 import { fmt, fmtDate, handleDownloadPDF, calcMargin, handlePdfAction } from "./stageUtils";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ interface Props {
 
 export function TagihanView({ invoice, onUpdated }: Props) {
   const { updateInvoice } = useInvoices();
+  const { toast } = useToast();
 
   const [items, setItems] = useState<InvoiceItemInput[]>(
     invoice.items.map((i) => ({
@@ -55,6 +57,7 @@ export function TagihanView({ invoice, onUpdated }: Props) {
       quantity: Number(i.quantity || 0),
       actual_quantity: null,
       unit_price: Number(i.unit_price || 0),
+      ajm_price: Number((invoice.items[idx] as any)?.ajm_price ?? i.unit_price ?? 0),
       buy_in_price: Number(i.buy_in_price || 0),
       line_total: 0,
       sort_order: idx,
@@ -71,7 +74,11 @@ export function TagihanView({ invoice, onUpdated }: Props) {
     );
     if (invalidItem) {
       if (nextStatus) {
-        alert(`HPP Beli untuk produk "${invalidItem.description}" tidak boleh lebih besar dari Harga Jual!`);
+        toast({
+          title: "HPP Beli Tidak Valid",
+          description: `HPP untuk "${invalidItem.description}" harus lebih kecil dari harga jual.`,
+          variant: "destructive",
+        });
       }
       return;
     }
@@ -84,6 +91,7 @@ export function TagihanView({ invoice, onUpdated }: Props) {
           ...item,
           quantity: Number(item.quantity || 0),
           unit_price: Number(item.unit_price || 0),
+          ajm_price: Number((invoice.items[idx] as any)?.ajm_price ?? item.unit_price ?? 0),
           buy_in_price: Number(item.buy_in_price || 0),
           sort_order: idx,
         })),
@@ -95,7 +103,11 @@ export function TagihanView({ invoice, onUpdated }: Props) {
       const updated = await updateInvoice(invoice.id, payload);
       onUpdated(updated);
     } catch (e: any) {
-      alert(e?.message || "Gagal menyimpan");
+      toast({
+        title: "Gagal menyimpan",
+        description: e?.message || "Terjadi kesalahan saat menyimpan tagihan.",
+        variant: "destructive",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -113,6 +125,7 @@ export function TagihanView({ invoice, onUpdated }: Props) {
         invoice_id: invoice.id,
         actual_quantity: null,
         unit_price: Number(item.unit_price || 0),
+        ajm_price: Number((invoice.items[idx] as any)?.ajm_price ?? item.unit_price ?? 0),
         buy_in_price: Number(item.buy_in_price || 0),
         line_total: Number(item.quantity || 0) * Number(item.unit_price || 0),
         sort_order: idx,
@@ -127,7 +140,7 @@ export function TagihanView({ invoice, onUpdated }: Props) {
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
           <span className="inline-flex items-center rounded-full bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 text-xs font-bold mb-2">Tagihan</span>
-          <h1 className="text-2xl font-black text-foreground">{invoice.invoice_number}</h1>
+          <h1 className="text-2xl font-black text-foreground">Nomor Transaksi {invoice.invoice_number}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             <span className="font-semibold text-foreground">{invoice.client?.name}</span>
             {invoice.client?.phone && <span> · {invoice.client.phone}</span>}

@@ -28,9 +28,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // ... existing code from RoleBadge ...
 function RoleBadge({ role }: { role: AppRole }) {
-  if (role === "owner") return <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">Owner</span>;
-  if (role === "admin" || role === "manager") return <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">Admin</span>;
-  return <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">Sales</span>;
+  if (role === "owner") return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ">Owner</span>;
+  if (role === "admin" || role === "manager") return <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ">Admin</span>;
+  return <span className="inline-flex items-center px-2.5 py-0.5 text-xs font-medium">Sales</span>;
 }
 
 // Removed UserRow as Users tab is removed
@@ -177,12 +177,12 @@ function SettingsPage() {
 
           {canManageRoles && (
             <div className="mt-6 pt-6 border-t">
-              <div className="flex items-center justify-between p-4 rounded-xl border bg-card">
+              <div className="flex items-center justify-between p-4 border bg-white">
                 <div>
-                  <h3 className="font-bold text-sm text-foreground">Pengguna Sistem & Tim Sales</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">Kelola pembuatan akun admin, manager, dan tim sales.</p>
+                  <h3 className="font-bold text-sm text-foreground">Pengguna Sistem</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Kelola akun admin dan tim sales.</p>
                 </div>
-                <Button asChild size="sm" className="font-bold">
+                <Button asChild size="sm" variant="outline" className="font-bold">
                   <Link href="/tracker/users">Kelola Akun</Link>
                 </Button>
               </div>

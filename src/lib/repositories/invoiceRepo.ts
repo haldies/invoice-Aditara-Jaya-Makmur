@@ -24,7 +24,27 @@ export interface Actor {
   role: AppRole;
 }
 
-export type UpdateInvoiceInput = Partial<InvoiceInput> & { version?: number };
+export type UpdateInvoiceInput = Partial<InvoiceInput> & {
+  payment_history?: any[];
+  version?: number;
+};
+
+function normalizePaymentHistory(raw: any): NonNullable<Invoice["payment_history"]> {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((entry, index) => {
+    const paidAt = entry?.paid_at || entry?.created_at || new Date().toISOString();
+    return {
+      id: entry?.id || `legacy-${index}-${paidAt}`,
+      amount: Number(entry?.amount || 0),
+      paid_at: paidAt,
+      created_at: entry?.created_at || paidAt,
+      updated_at: entry?.updated_at ?? null,
+      deleted_at: entry?.deleted_at ?? null,
+      deleted_reason: entry?.deleted_reason ?? null,
+      edited_from_amount: entry?.edited_from_amount ?? null,
+    };
+  });
+}
 
 function canManageAll(role: AppRole) {
   return role === "owner" || role === "manager" || role === "admin";
@@ -62,6 +82,7 @@ function rowToInvoice(row: InvoiceRow): Invoice {
     notes: row.notes ?? null,
     terms: row.terms ?? null,
     template_id: row.template_id ?? null,
+    payment_history: normalizePaymentHistory((row as any).payment_history),
     user: row.user,
     client: rowToClient(row.client),
     items: row.items.map((item) => ({
@@ -162,7 +183,19 @@ export async function listInvoices(
   const where: Prisma.InvoiceWhereInput = ownershipWhere(actor);
   
   if (filters.status && filters.status !== "all") {
-    where.status = filters.status;
+    const statusValues = String(filters.status)
+      .split(",")
+      .map((status) => status.trim())
+      .filter(Boolean);
+
+    if (statusValues.length === 1) {
+      where.status = statusValues[0] as InvoiceStatus;
+    } else if (statusValues.length > 1) {
+      where.OR = [
+        ...(where.OR || []),
+        ...statusValues.map((status) => ({ status: status as InvoiceStatus })),
+      ];
+    }
   }
   
   if (filters.start_date || filters.end_date) {
@@ -235,6 +268,10 @@ export async function listInvoices(
     where.OR = [
       ...(where.OR || []),
       { client: { address: { contains: filters.city, mode: "insensitive" } } },
+      { client: { province: { contains: filters.city, mode: "insensitive" } } },
+      { client: { city: { contains: filters.city, mode: "insensitive" } } },
+      { client: { district: { contains: filters.city, mode: "insensitive" } } },
+      { client: { postal_code: { contains: filters.city, mode: "insensitive" } } },
       { notes: { contains: filters.city, mode: "insensitive" } }
     ];
   }
@@ -360,12 +397,29 @@ export async function updateInvoice(
       : undefined;
 
   const nextItems = updates.items ?? existing.items;
+  const nextPaymentHistory = updates.payment_history !== undefined
+    ? updates.payment_history
+    : existing.payment_history || [];
+  const activePaymentTotal = Array.isArray(nextPaymentHistory)
+    ? nextPaymentHistory.reduce((sum, entry: any) => {
+        if (entry?.deleted_at) return sum;
+        return sum + normalizeMoney(entry?.amount);
+      }, 0)
+    : 0;
+  const incomingAmountPaid = updates.amount_paid !== undefined ? normalizeMoney(updates.amount_paid) : existing.amount_paid;
   const totals = calculateTotals({
     items: nextItems,
     discount: updates.discount ?? existing.discount,
     tax: updates.tax ?? existing.tax,
     fee: updates.fee ?? existing.fee,
   });
+
+  if (updates.payment_history !== undefined || updates.amount_paid !== undefined) {
+    const totalPaid = updates.payment_history !== undefined ? activePaymentTotal : incomingAmountPaid;
+    if (totalPaid > totals.total + 0.0001) {
+      throw new Error(`Total pembayaran tidak boleh melebihi tagihan. Maksimal Rp ${Math.floor(totals.total).toLocaleString("id-ID")}.`);
+    }
+  }
 
   const where: Prisma.InvoiceWhereInput = { id, ...ownershipWhere(actor) };
   if (updates.version !== undefined) where.version = updates.version;
@@ -382,6 +436,12 @@ export async function updateInvoice(
       ...(updates.issue_date !== undefined ? { issue_date: updates.issue_date } : {}),
       ...(updates.due_date !== undefined ? { due_date: updates.due_date } : {}),
       ...(updates.paid_date !== undefined ? { paid_date: updates.paid_date } : {}),
+      ...(updates.amount_paid !== undefined
+        ? { amount_paid: normalizeMoney(updates.amount_paid) }
+        : {}),
+      ...(updates.payment_history !== undefined
+        ? { payment_history: updates.payment_history as any }
+        : {}),
       ...(updates.notes !== undefined ? { notes: updates.notes } : {}),
       ...(updates.terms !== undefined ? { terms: updates.terms } : {}),
       ...(updates.template_id !== undefined

@@ -94,6 +94,12 @@ export const formatClientAddress = (client: any): string => {
   return parts.filter((p) => p && p.trim() !== "").join(", ");
 };
 
+export const formatClientLocation = (client: any): string => {
+  if (!client) return "";
+  const parts = [client.province, client.city, client.district, client.postal_code];
+  return parts.filter((p) => p && p.trim() !== "").join(", ");
+};
+
 export const generatePdfDocumentNumber = (docType: string, invoice: any): string => {
   const dateObj = new Date(invoice.issue_date || Date.now());
   const yyyy = dateObj.getFullYear();

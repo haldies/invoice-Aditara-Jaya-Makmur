@@ -5,11 +5,20 @@
 import { useState, useMemo } from "react";
 import { Invoice } from "@/types/invoice";
 import { useInvoices } from "@/hooks/useInvoices";
+import { useToast } from "@/hooks/use-toast";
 import { loadCompanyProfile } from "@/lib/companyProfile";
-import { fmt, fmtDate, handleDownloadPDF, calcMargin, handlePdfAction } from "./stageUtils";
+import { fmt, fmtDateTime, handleDownloadPDF, calcMargin, handlePdfAction } from "./stageUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -25,12 +34,15 @@ interface Props {
 
 export function PengirimanView({ invoice, onUpdated }: Props) {
   const { updateInvoice } = useInvoices();
+  const { toast } = useToast();
   const includePpn = Math.abs((invoice.tax || 0) - invoice.subtotal * 0.11) < 100 && (invoice.tax || 0) > 0;
 
   const [actualQtys, setActualQtys] = useState<(number | null)[]>(
     invoice.items.map((i) => i.actual_quantity)
   );
   const [paidAmount, setPaidAmount] = useState(invoice.amount_paid || 0);
+  const [payOpen, setPayOpen] = useState(false);
+  const [payDraft, setPayDraft] = useState("");
 
   const [isSaving, setIsSaving] = useState(false);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
@@ -55,9 +67,10 @@ export function PengirimanView({ invoice, onUpdated }: Props) {
 
   const tax = includePpn ? Math.round(subtotal * 0.11) : invoice.tax || 0;
   const total = Math.max(0, subtotal - (invoice.discount || 0) + tax + (invoice.shipping_fee || 0));
+  const payDraftValue = Number((payDraft || "").replace(/[^\d]/g, "") || 0);
   const margin = useMemo(() => calcMargin({ ...invoice, items: updatedItems }), [invoice, updatedItems]);
 
-  const save = async (nextStatus?: string) => {
+  const save = async (nextStatus?: string, amountPaidOverride?: number) => {
     setIsSaving(true);
     try {
       const payload: any = {
@@ -66,10 +79,11 @@ export function PengirimanView({ invoice, onUpdated }: Props) {
           quantity: item.quantity,
           actual_quantity: actualQtys[idx],
           unit_price: Number(item.unit_price || 0),
+          ajm_price: Number((item as any).ajm_price ?? item.unit_price ?? 0),
           buy_in_price: Number(item.buy_in_price || 0),
           sort_order: item.sort_order,
         })),
-        amount_paid: paidAmount,
+        amount_paid: amountPaidOverride ?? paidAmount,
       };
       if (nextStatus) {
         payload.status = nextStatus;
@@ -78,10 +92,22 @@ export function PengirimanView({ invoice, onUpdated }: Props) {
       const updated = await updateInvoice(invoice.id, payload);
       onUpdated(updated);
     } catch (e: any) {
-      alert(e?.message || "Gagal menyimpan");
+      toast({ title: "Gagal menyimpan", description: e?.message || "Terjadi kesalahan saat menyimpan.", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handlePay = async () => {
+    if (payDraftValue <= 0) {
+      toast({ title: "Nominal belum valid", description: "Masukkan jumlah pembayaran yang benar.", variant: "destructive" });
+      return;
+    }
+    const nextPaid = Math.min(total, paidAmount + payDraftValue);
+    await save("selesai", nextPaid);
+    setPaidAmount(nextPaid);
+    setPayDraft("");
+    setPayOpen(false);
   };
 
   const download = (action: PdfAction) => {
@@ -95,13 +121,13 @@ export function PengirimanView({ invoice, onUpdated }: Props) {
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <span className="inline-flex items-center rounded-full bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 text-xs font-bold mb-2">Pengiriman</span>
-          <h1 className="text-2xl font-black text-foreground">{invoice.invoice_number}</h1>
+          <h1 className="text-2xl font-black text-foreground">Nomor Transaksi {invoice.invoice_number}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             <span className="font-semibold text-foreground">{invoice.client?.name}</span>
             {invoice.client?.phone && <span> · {invoice.client.phone}</span>}
           </p>
           {invoice.notes && <p className="text-xs text-muted-foreground mt-0.5">Lokasi: {invoice.notes}</p>}
-          {invoice.due_date && <p className="text-xs text-muted-foreground mt-0.5">Tgl Pengiriman: {fmtDate(invoice.due_date)}</p>}
+          {invoice.due_date && <p className="text-xs text-muted-foreground mt-0.5">Tgl Pengiriman: {fmtDateTime(invoice.due_date)}</p>}
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-2 sm:mt-0 shrink-0">
           <PdfActionButton
@@ -211,25 +237,9 @@ export function PengirimanView({ invoice, onUpdated }: Props) {
               <span>Total Tagih</span><span className="text-lg">{fmt(total)}</span>
             </div>
             <div className="pt-3 border-t mt-3">
-              <Label className="text-[10px] uppercase font-semibold text-slate-500 mb-1 block">Konfirmasi Pembayaran (Rp)</Label>
-              <Input
-                type="number" min="0" step="any"
-                value={paidAmount || ""}
-                onChange={(e) => setPaidAmount(Number(e.target.value) || 0)}
-                onBlur={() => save()}
-                placeholder={String(Math.round(total))}
-                className="h-9 w-full text-right font-bold focus-visible:ring-emerald-500 border-emerald-200 bg-emerald-50/30 text-emerald-700"
-              />
-              {paidAmount > 0 && paidAmount < Math.round(total) && (
-                <p className="text-[10px] text-amber-600 mt-1.5 font-medium flex justify-between">
-                  <span>Kurang bayar:</span> <span>{fmt(Math.round(total) - paidAmount)}</span>
-                </p>
-              )}
-              {paidAmount > Math.round(total) && (
-                <p className="text-[10px] text-blue-600 mt-1.5 font-medium flex justify-between">
-                  <span>Lebih bayar:</span> <span>{fmt(paidAmount - Math.round(total))}</span>
-                </p>
-              )}
+              <p className="text-[10px] text-muted-foreground">
+                Pembayaran diselesaikan lewat tombol <span className="font-semibold text-foreground">Bayar</span> di bawah.
+              </p>
             </div>
           </div>
 
@@ -247,28 +257,48 @@ export function PengirimanView({ invoice, onUpdated }: Props) {
           </div>
 
           <div className="space-y-2">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button type="button" className="w-full h-11 font-bold text-sm bg-primary text-primary-foreground hover:bg-primary/90" disabled={isSaving}>
-                  Selesaikan Transaksi
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Selesaikan Transaksi?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Transaksi akan ditandai SELESAI. Pastikan volume aktual sudah diisi dengan benar.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Batal</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => save("selesai")} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                    Selesaikan Transaksi
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <Dialog open={payOpen} onOpenChange={setPayOpen}>
+              <Button
+                type="button"
+                className="w-full h-11 font-bold text-sm bg-primary text-primary-foreground hover:bg-primary/90"
+                disabled={isSaving}
+                onClick={() => setPayOpen(true)}
+              >
+                Bayar
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Bayar Transaksi</DialogTitle>
+                  <DialogDescription>
+                    Masukkan nominal bayar terakhir. Setelah dibayar, transaksi masuk ke tahap selesai.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-muted-foreground">Nominal bayar</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={payDraft}
+                    onChange={(e) => setPayDraft(e.target.value)}
+                    placeholder={String(Math.max(0, Math.round(total - paidAmount)))}
+                    className="h-10 text-sm font-semibold"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Sisa tagihan: {fmt(Math.max(0, total - paidAmount))}
+                  </p>
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setPayOpen(false)} disabled={isSaving}>
+                    Batal
+                  </Button>
+                  <Button type="button" onClick={handlePay} disabled={isSaving || payDraftValue <= 0} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                    Bayar
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </div>

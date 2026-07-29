@@ -80,6 +80,7 @@ model Invoice {
   fee            Float         @default(0)  // Fee/biaya tambahan yang dibebankan (dikurangi dari margin, bukan dari total customer)
   total          Float         @default(0)
   amount_paid    Float         @default(0)
+  payment_history Json?         @default("[]")
   notes          String?
   terms          String?
   template_id    String?       @db.Uuid

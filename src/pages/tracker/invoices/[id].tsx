@@ -64,10 +64,8 @@ function InvoiceDetailPage() {
       } else if (status === "tagihan") {
         viewContent = <TagihanView invoice={currentInvoice} onUpdated={handleUpdated} />;
       } else if (status === "po") {
-        viewContent = <POView invoice={currentInvoice} onUpdated={handleUpdated} />;
-      } else if (status === "pengiriman") {
         viewContent = <PengirimanView invoice={currentInvoice} onUpdated={handleUpdated} />;
-      } else if (status === "selesai" || status === "batal") {
+      } else if (status === "selesai" || status === "batal" || status === "pengiriman") {
         viewContent = <SelesaiView invoice={currentInvoice} onUpdated={handleUpdated} isSales={false} />;
       }
     }

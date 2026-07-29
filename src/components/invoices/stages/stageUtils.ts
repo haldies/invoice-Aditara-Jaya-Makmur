@@ -23,6 +23,20 @@ export function fmtDate(dateStr: string | null | undefined): string {
   }
 }
 
+export function fmtDateTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return "-";
+  try {
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return dateStr;
+    return d.toLocaleString("id-ID", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
 /** Hitung totals dari invoice */
 export function calcTotals(invoice: Invoice) {
   const subtotal = invoice.items.reduce((sum, item) => {
@@ -44,7 +58,7 @@ export function calcMargin(invoice: Invoice) {
     const dealQty = Number(item.quantity || 0);
     const billedQty = item.actual_quantity != null ? Number(item.actual_quantity) : dealQty;
     const dealPrice = Number(item.unit_price || 0);
-    const ajmPrice = Number(item.ajm_price || 0);
+    const ajmPrice = Number(item.ajm_price ?? item.unit_price ?? 0);
 
     rawTotalDeal += billedQty * dealPrice;
     rawTotalAjm += billedQty * ajmPrice;

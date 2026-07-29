@@ -100,8 +100,7 @@ function AppSidebar({
         <div className="flex items-center gap-3">
           {!collapsed && (
             <div className="overflow-hidden">
-              <p className="font-bold text-sm text-foreground truncate leading-tight">Contoh Invoice</p>
-              <p className="text-[10px] text-muted-foreground truncate leading-tight">Invoice Manager</p>
+              <p className="font-bold text-sm text-foreground truncate leading-tight">Managent Sistem AJM</p>
             </div>
           )}
         </div>

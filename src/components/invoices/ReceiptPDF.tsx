@@ -235,6 +235,9 @@ export const ReceiptPDF = ({ invoice, company, includePpn }: Props) => {
   const discount = Number(invoice.discount || 0);
   const tax = includePpn ? Math.round(subtotal * 0.11) : Number(invoice.tax || 0);
   const total = Math.max(0, subtotal - discount + tax);
+  const amountPaid = Number(invoice.amount_paid || 0);
+  const sisaTagihan = Math.max(0, total - amountPaid);
+  const statusBayar = amountPaid >= total && total > 0 ? "LUNAS" : amountPaid > 0 ? "PEMBAYARAN" : "BELUM BAYAR";
 
   const formattedDate = formatDateIndo(invoice.paid_date || invoice.issue_date || new Date().toISOString().slice(0, 10));
   const locationAndDate = company.city 
@@ -273,7 +276,7 @@ export const ReceiptPDF = ({ invoice, company, includePpn }: Props) => {
         </View>
 
         {/* Title */}
-        <Text style={styles.title}>KWITANSI</Text>
+        <Text style={styles.title}>KWITANSI PEMBAYARAN</Text>
 
         {/* TELAH TERIMA DARI */}
         <View style={styles.row}>
@@ -362,7 +365,27 @@ export const ReceiptPDF = ({ invoice, company, includePpn }: Props) => {
           <Text style={styles.subLabel}>Keterangan</Text>
           <Text style={styles.subColon}>:</Text>
           <View style={styles.subValueLeftKeteranganContainer}>
-            <Text style={styles.valueText}>Lunas</Text>
+            <Text style={styles.valueText}>{statusBayar}</Text>
+          </View>
+        </View>
+
+        {/* Sudah Dibayar Row */}
+        <View style={styles.subRow}>
+          <View style={styles.subSpacer} />
+          <Text style={styles.subLabel}>Sudah Dibayar</Text>
+          <Text style={styles.subColon}>:</Text>
+          <View style={styles.subValueLeftKeteranganContainer}>
+            <Text style={styles.valueText}>{`Rp ${fmtAmt(amountPaid)}`}</Text>
+          </View>
+        </View>
+
+        {/* Sisa Tagihan Row */}
+        <View style={styles.subRow}>
+          <View style={styles.subSpacer} />
+          <Text style={styles.subLabel}>Sisa Tagihan</Text>
+          <Text style={styles.subColon}>:</Text>
+          <View style={styles.subValueLeftKeteranganContainer}>
+            <Text style={styles.valueText}>{`Rp ${fmtAmt(sisaTagihan)}`}</Text>
           </View>
         </View>
 

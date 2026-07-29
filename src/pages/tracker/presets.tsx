@@ -87,6 +87,8 @@ function PresetItemPage() {
       setPresetCategory(preset.category || "BETON");
       setPresetSupplier(preset.supplier || (preset.category === "BESI" ? "MITRA1" : "KOKO SUPPLIER"));
       setPresetPrice(String(preset.unit_price));
+      setPresetBuyInPrice(String(preset.buy_in_price || ""));
+      setPresetAjmPrice(String(preset.ajm_price || ""));
       setPresetTaxRate(String(preset.tax_rate));
     } else {
       setEditingPreset(null);
@@ -95,6 +97,8 @@ function PresetItemPage() {
       setPresetCategory("BETON");
       setPresetSupplier("KOKO SUPPLIER");
       setPresetPrice("1500000");
+      setPresetBuyInPrice("");
+      setPresetAjmPrice("");
       setPresetTaxRate("11");
     }
     setIsPresetDialogOpen(true);
@@ -114,14 +118,28 @@ function PresetItemPage() {
     if (!presetName) return;
     setSavingPreset(true);
     try {
+      const unitPrice = Number(presetPrice || 0);
+      const buyInPrice = Number(presetBuyInPrice || 0);
+      const ajmPrice = Number(presetAjmPrice || unitPrice || 0);
+
+      if (buyInPrice > 0 && unitPrice > 0 && buyInPrice >= unitPrice) {
+        toast({
+          title: "HPP Tidak Valid",
+          description: "Harga HPP harus lebih kecil dari harga dasar jual supaya margin tidak minus.",
+          variant: "destructive",
+        });
+        setSavingPreset(false);
+        return;
+      }
+
       const payload = {
         name: presetName,
         description: presetDescription,
         category: presetCategory,
         supplier: presetSupplier,
-        unit_price: Number(presetPrice || 0),
-        buy_in_price: 0,
-        ajm_price: Number(presetPrice || 0),
+        unit_price: unitPrice,
+        buy_in_price: buyInPrice,
+        ajm_price: ajmPrice,
         tax_rate: Number(presetTaxRate || 0),
       };
       if (editingPreset) {
@@ -472,11 +490,13 @@ function PresetItemPage() {
                     <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
                     Harga & PPN
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-1 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-muted-foreground">Harga Dasar Perusahaan (Rp)</label>
+                      <label className="text-xs font-semibold text-muted-foreground">Harga Dasar Jual (Rp)</label>
                       <Input
                         type="number"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         min="0"
                         required
                         value={presetPrice}
@@ -485,6 +505,32 @@ function PresetItemPage() {
                         className="h-9"
                       />
                     </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-muted-foreground">HPP / Harga Beli (Rp)</label>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        min="0"
+                        value={presetBuyInPrice}
+                        onChange={(e) => setPresetBuyInPrice(e.target.value)}
+                        placeholder="Contoh: 650000"
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-muted-foreground">Harga AJM / Net</label>
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      min="0"
+                      value={presetAjmPrice}
+                      onChange={(e) => setPresetAjmPrice(e.target.value)}
+                      placeholder="Contoh: 800000"
+                      className="h-9"
+                    />
                   </div>
                 </div>
 
@@ -492,6 +538,8 @@ function PresetItemPage() {
                   <label className="text-xs font-semibold text-muted-foreground">PPN Default (%)</label>
                   <Input
                     type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     min="0"
                     max="100"
                     value={presetTaxRate}

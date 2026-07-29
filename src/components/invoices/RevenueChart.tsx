@@ -1,11 +1,10 @@
 import React from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface RevenueChartProps {
   data: {
     label: string;
     revenue: number;
-    profit: number;
   }[];
 }
 
@@ -58,14 +57,9 @@ export function RevenueChart({ data }: RevenueChartProps) {
           <Tooltip 
             cursor={{ fill: "rgba(0, 0, 0, 0.04)" }}
             contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
-            formatter={(value: any, name: any) => [
-              `Rp ${Number(value).toLocaleString("id-ID")}`,
-              name === "revenue" ? "Omset" : "Laba Bersih"
-            ]}
+            formatter={(value: any) => [`Rp ${Number(value).toLocaleString("id-ID")}`, "Omset"]}
           />
-          <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
           <Bar dataKey="revenue" name="Omset" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={50} />
-          <Bar dataKey="profit" name="Laba Bersih" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={50} />
         </BarChart>
       </ResponsiveContainer>
     </div>

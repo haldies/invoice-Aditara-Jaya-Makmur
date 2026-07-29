@@ -403,7 +403,7 @@ export function InvoiceList() {
                   <div className="flex items-start justify-between gap-3 mb-2.5">
                     <div className="min-w-0">
                       <h4 className="font-extrabold text-xs text-foreground truncate group-hover:text-primary transition-colors">
-                        {invoice.invoice_number.replace(/^INV-/, "TRX-")}
+                        {invoice.invoice_number.replace(/^INV-/, "TRX-").replace(/^INV\//, "TRX/")}
                       </h4>
                       <p className="text-[11px] text-slate-700 dark:text-slate-300 font-semibold truncate mt-0.5">
                         {invoice.client.company || invoice.client.name}

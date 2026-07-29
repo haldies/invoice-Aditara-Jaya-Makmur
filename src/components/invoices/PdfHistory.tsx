@@ -14,6 +14,7 @@ export function PdfHistory({ invoice }: Props) {
   const [loadingType, setLoadingType] = useState<string | null>(null);
 
   const includePpn = Math.abs((invoice.tax || 0) - invoice.subtotal * 0.11) < 100 && (invoice.tax || 0) > 0;
+  const isLunas = Number(invoice.total || 0) > 0 && Number(invoice.amount_paid || 0) >= Number(invoice.total || 0);
 
   const download = (type: "quotation" | "invoice" | "receipt" | "po", action: any) => {
     const company = loadCompanyProfile();
@@ -53,7 +54,7 @@ export function PdfHistory({ invoice }: Props) {
             className="h-10 text-xs font-semibold flex items-center justify-center gap-2 border-primary/20 text-primary hover:bg-primary/5"
           />
         )}
-        {currentIdx >= 4 && (
+        {currentIdx >= 4 && isLunas && (
           <PdfActionButton
             label="Kwitansi"
             icon={Receipt}

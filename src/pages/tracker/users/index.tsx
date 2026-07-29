@@ -93,9 +93,6 @@ export default function UsersPage() {
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="flex justify-between items-center p-2">
             <div>
-              <h2 className="text-lg font-black">
-                Pengguna Sistem
-              </h2>
               <p className="text-xs text-muted-foreground mt-1">Kelola akun admin dan tim sales.</p>
             </div>
             
@@ -207,10 +204,10 @@ export default function UsersPage() {
             </DialogContent>
           </Dialog>
 
-          <div className="bg-card rounded-xl border overflow-hidden">
+          <div className="bg-white border overflow-hidden">
             <div className="overflow-x-auto w-full">
-              <table className="w-full min-w-[600px] text-sm text-left whitespace-nowrap">
-                <thead className="text-xs uppercase bg-slate-50 border-b text-slate-500">
+              <table className="w-full min-w-[600px] text-sm text-left whitespace-nowrap border-collapse">
+                <thead className="text-xs uppercase bg-white border-b border-slate-200 text-slate-500">
                   <tr>
                     <th className="px-4 py-3">Username</th>
                     <th className="px-4 py-3">Role</th>
@@ -243,7 +240,7 @@ export default function UsersPage() {
                     </tr>
                   ) : (
                     users.map(u => (
-                      <tr key={u.id} className="border-b last:border-0 hover:bg-slate-50/50">
+                      <tr key={u.id} className="border-b border-slate-200 last:border-0 hover:bg-slate-50/50">
                         <td className="px-4 py-3 font-bold">{u.email}</td>
                         <td className="px-4 py-3 font-semibold text-muted-foreground uppercase text-[11px] tracking-wide">
                           {u.role}

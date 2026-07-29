@@ -174,7 +174,7 @@ export function AdminPenawaranView({ invoice, onUpdated }: Props) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Penawaran</p>
-          <h1 className="text-2xl font-black text-foreground mt-0.5">{invoice.invoice_number}</h1>
+          <h1 className="text-2xl font-black text-foreground mt-0.5">Nomor Transaksi {invoice.invoice_number}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             <span className="font-semibold text-foreground">{invoice.client?.name}</span>
             {invoice.client?.phone && <span> · {invoice.client.phone}</span>}

@@ -15,15 +15,12 @@ import {
 } from "@/components/ui/dialog";
 import { ExternalLink } from "lucide-react";
 
-const MARGIN_PER_PAGE = 10;
-
 export function InvoiceDashboard() {
   const { user } = useAuth();
   const { invoices, isLoading, isValidating } = useInvoices();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"invoices" | "finance" | "sales" | "customers">("invoices");
   const [timeFilter, setTimeFilter] = useState<"all" | "year" | "month">("all");
-  const [marginPage, setMarginPage] = useState(1);
 
   const isAdmin = user && (user.role === "admin" || user.role === "manager" || user.role === "owner");
 
@@ -70,7 +67,7 @@ export function InvoiceDashboard() {
       sisaQty: number;
       date: string;
     }> = [];
-    const chartDataMap: Record<string, { label: string; revenue: number; profit: number; order: number }> = {};
+    const chartDataMap: Record<string, { label: string; revenue: number; order: number }> = {};
 
     // Helper for month names
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
@@ -79,19 +76,19 @@ export function InvoiceDashboard() {
     if (timeFilter === "year") {
       // 12 months for current year
       for (let m = 0; m < 12; m++) {
-        chartDataMap[`${m}`] = { label: monthNames[m], revenue: 0, profit: 0, order: m };
+        chartDataMap[`${m}`] = { label: monthNames[m], revenue: 0, order: m };
       }
     } else if (timeFilter === "month") {
       // All days in current month
       const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
       for (let d = 1; d <= daysInMonth; d++) {
-        chartDataMap[`${d}`] = { label: `${d}`, revenue: 0, profit: 0, order: d };
+        chartDataMap[`${d}`] = { label: `${d}`, revenue: 0, order: d };
       }
     } else {
       // "all" — show all 12 months for every year that has data; pre-seed current year
       for (let m = 0; m < 12; m++) {
         const key = `${currentYear}-${m}`;
-        chartDataMap[key] = { label: `${monthNames[m]} '${String(currentYear).slice(2)}`, revenue: 0, profit: 0, order: currentYear * 100 + m };
+        chartDataMap[key] = { label: `${monthNames[m]} '${String(currentYear).slice(2)}`, revenue: 0, order: currentYear * 100 + m };
       }
     }
 
@@ -202,7 +199,7 @@ export function InvoiceDashboard() {
         }
 
         if (!chartDataMap[chartKey]) {
-          chartDataMap[chartKey] = { label: chartLabel, revenue: 0, profit: 0, order };
+          chartDataMap[chartKey] = { label: chartLabel, revenue: 0, order };
         }
         
         // Calculate exact profit for this invoice
@@ -222,23 +219,29 @@ export function InvoiceDashboard() {
         }
         const invProfit = invAjm - invHpp - invFee;
 
-        chartDataMap[chartKey].revenue += invRev;
-        chartDataMap[chartKey].profit += invProfit;
+        const isPaidInFull = Number(invoice.amount_paid || 0) >= Number(invoice.total || 0) && Number(invoice.total || 0) > 0;
+        if (isPaidInFull) {
+          chartDataMap[chartKey].revenue += invRev;
+        }
       }
     }
 
     // Convert chart map to array and sort
     const chartData = Object.values(chartDataMap).sort((a, b) => a.order - b.order);
 
-    const totalPpnSupplier = Math.round(totalHppDibayar * 0.11);
-    const totalBuyIn       = totalHppDibayar + totalPpnSupplier;
+    const activeTransactionInvoices = filteredInvoices.filter(
+      (inv) => inv.status === "po" || inv.status === "pengiriman" || inv.status === "selesai"
+    );
+    const paidInvoices = filteredInvoices.filter((inv) => inv.status !== "batal" && Number(inv.amount_paid || 0) >= Number(inv.total || 0) && Number(inv.total || 0) > 0);
+    const paidRevenue = activeTransactionInvoices.reduce((sum, inv) => sum + inv.items.reduce((s, item) => s + (item.actual_quantity != null ? Number(item.actual_quantity) : Number(item.quantity || 0)) * Number(item.unit_price || 0), 0), 0);
+    const paidHppDibayar = activeTransactionInvoices.reduce((sum, inv) => sum + inv.items.reduce((s, item) => s + Number(item.quantity || 0) * Number(item.buy_in_price || 0), 0), 0);
+    const totalPpnSupplier = Math.round(paidHppDibayar * 0.11);
+    const totalBuyIn       = paidHppDibayar + totalPpnSupplier;
     const totalGlobalFee   = 0;
-    const grossProfit      = totalAjm - totalHpp;
-    const avgMarginPerM3   = totalVolume > 0 ? grossProfit / totalVolume : 0;
+    const grossProfit      = paidRevenue - paidHppDibayar;
     
-    // Ongkir menambah laba bersih
-    const totalShipping = invoices
-      .filter((inv) => inv.status !== "batal")
+    // Ongkir menambah laba bersih hanya untuk transaksi yang sudah terkirim
+    const totalShipping = activeTransactionInvoices
       .reduce((sum, inv) => sum + Number(inv.shipping_fee || 0), 0);
     const netProfitGlobal = grossProfit + totalShipping;
 
@@ -248,7 +251,7 @@ export function InvoiceDashboard() {
       { id: string; name: string; company: string; invoiceCount: number; totalDeal: number; totalVolume: number; lastOrderDate: string; totalOutstanding: number }
     > = {};
     const byProduct: Record<string, { name: string; count: number; volume: number; revenue: number; hpp: number }> = {};
-    const byDestination: Record<string, { city: string; count: number; volume: number; revenue: number; hpp: number }> = {};
+      const byDestination: Record<string, { location: string; count: number; volume: number; revenue: number; hpp: number }> = {};
 
     for (const inv of filteredInvoices.filter((i) => i.status !== "batal")) {
       const cid   = inv.client_id;
@@ -261,32 +264,18 @@ export function InvoiceDashboard() {
       
       byClient[cid].invoiceCount += 1;
       
-      let city = "Tidak Diketahui";
+      let location = "Tidak Diketahui";
       const plantMatch = inv.notes?.match(/Plant:\s*([^\n,]+)/i);
       if (plantMatch) {
-        city = plantMatch[1].trim();
+        location = plantMatch[1].trim();
       } else {
-        let c = inv.client?.city;
-        if (!c && inv.client?.address) {
-          const address = inv.client.address;
-          const match = address.match(/(?:Kab\.|Kota|Kabupaten)\s+[A-Za-z\s]+/i);
-          if (match) {
-            c = match[0].trim();
-          } else {
-            const parts = address.split(',').map(s => s.trim());
-            if (parts.length >= 3) {
-              c = parts[parts.length - 2];
-            } else {
-              c = parts[parts.length - 1];
-            }
-            c = c.replace(/\b\d{5}\b/g, '').trim();
-          }
-        }
-        city = c || "Tidak Diketahui";
+        const city = (inv.client?.city || "").trim();
+        const province = (inv.client?.province || "").trim();
+        location = city || province || "Tidak Diketahui";
       }
       
-      if (!byDestination[city]) byDestination[city] = { city, count: 0, volume: 0, revenue: 0, hpp: 0 };
-      byDestination[city].count += 1;
+      if (!byDestination[location]) byDestination[location] = { location, count: 0, volume: 0, revenue: 0, hpp: 0 };
+      byDestination[location].count += 1;
 
       inv.items.forEach(it => {
         const q = it.actual_quantity != null ? Number(it.actual_quantity) : Number(it.quantity || 0);
@@ -297,9 +286,9 @@ export function InvoiceDashboard() {
         byClient[cid].totalDeal += deal;
         byClient[cid].totalVolume += q;
         
-        byDestination[city].volume += q;
-        byDestination[city].revenue += deal;
-        byDestination[city].hpp += hpp;
+        byDestination[location].volume += q;
+        byDestination[location].revenue += deal;
+        byDestination[location].hpp += hpp;
 
         const prodName = it.description || "Produk Lainnya";
         if (!byProduct[prodName]) byProduct[prodName] = { name: prodName, count: 0, volume: 0, revenue: 0, hpp: 0 };
@@ -418,7 +407,6 @@ export function InvoiceDashboard() {
       totalFee: totalEksternalFee,
       grossProfit,
       netProfitGlobal,
-      avgMarginPerM3,
       totalPOVolume,
       totalSisaPO,
       salesStats: Object.values(bySales).sort((a, b) => b.totalRevenue - a.totalRevenue),
@@ -745,21 +733,21 @@ export function InvoiceDashboard() {
           <section className="grid grid-cols-2 overflow-hidden rounded-lg border bg-card md:grid-cols-4">
             <div className="p-4">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase">
-                Total Omset (Kotor)
+                Total Omset PO+
               </div>
               <p className="mt-1 truncate text-lg font-bold text-foreground">
-                Rp {invoices.filter(i => i.status !== "batal").reduce((sum, inv) => sum + inv.total, 0).toLocaleString("id-ID")}
+                Rp {stats.totalRevenue.toLocaleString("id-ID")}
               </p>
-              <p className="text-[10px] text-muted-foreground">Termasuk PPN</p>
+              <p className="text-[10px] text-muted-foreground">Hanya transaksi yang sudah masuk PO atau lebih</p>
             </div>
             <div className="p-4 border-l">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase">
-                Total Modal Keluar
+                Total Modal PO+
               </div>
               <p className="mt-1 truncate text-lg font-bold text-orange-600">
                 Rp {stats.totalBuyIn.toLocaleString("id-ID")}
               </p>
-              <p className="text-[10px] text-muted-foreground">HPP + PPN</p>
+              <p className="text-[10px] text-muted-foreground">HPP + PPN supplier</p>
             </div>
             <div className="p-4 border-t md:border-t-0 border-l">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase">
@@ -768,165 +756,16 @@ export function InvoiceDashboard() {
               <p className={`mt-1 truncate text-lg font-bold ${stats.netProfitGlobal >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                 Rp {stats.netProfitGlobal.toLocaleString("id-ID")}
               </p>
-              <p className="text-[10px] text-muted-foreground">Setelah komisi & ongkir</p>
-            </div>
-            <div className="p-4 border-t md:border-t-0 border-l">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase">Rata-rata Margin</p>
-              <p className="mt-1 truncate text-lg font-bold text-primary">
-                Rp {Math.round(stats.avgMarginPerM3).toLocaleString("id-ID")}/m³
-              </p>
-              {stats.totalFee > 0 && (
-                <p className="text-[10px] text-muted-foreground">
-                  Fee: Rp {stats.totalFee.toLocaleString("id-ID")}
-                </p>
-              )}
+              <p className="text-[10px] text-muted-foreground">Setelah komisi & ongkir, transaksi PO+</p>
             </div>
           </section>
 
-          {/* Detailed Transaction Margins Table */}
-          <section className="rounded-lg border bg-card p-4 space-y-3">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-sm font-bold text-foreground">Rincian Margin per Transaksi</h2>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Rekapitulasi keuntungan otomatis dari data invoice deal dan harga beli dasar.
-                </p>
-              </div>
-            </div>
-
-            <div className="relative w-full overflow-auto rounded-lg border">
-              <table className="w-full caption-bottom text-xs">
-                <thead className="bg-muted/40">
-                  <tr className="border-b uppercase">
-                    <th className="h-9 px-3 text-left font-semibold text-muted-foreground">NO. TRANSAKSI</th>
-                    <th className="h-9 px-3 text-left font-semibold text-muted-foreground">PELANGGAN</th>
-                    <th className="h-9 px-3 text-center font-semibold text-muted-foreground">VOL</th>
-                    <th className="h-9 px-3 text-right font-semibold text-muted-foreground">TOTAL DEAL</th>
-                    <th className="h-9 px-3 text-right font-semibold text-emerald-700">LABA BERSIH</th>
-                    <th className="h-9 px-3 text-center font-semibold text-muted-foreground">STATUS</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {invoices
-                    .filter((inv) => inv.status !== "batal")
-                    .slice((marginPage - 1) * MARGIN_PER_PAGE, marginPage * MARGIN_PER_PAGE)
-                    .map((inv) => {
-                      const billedQty = (it: typeof inv.items[0]) =>
-                        it.actual_quantity != null ? Number(it.actual_quantity) : Number(it.quantity || 0);
-                      const dealQty = (it: typeof inv.items[0]) => Number(it.quantity || 0);
-
-                      const invVolumeDeal   = inv.items.reduce((s, it) => s + dealQty(it), 0);
-                      const invVolumeActual = inv.items.reduce((s, it) => s + billedQty(it), 0);
-                      const hasActual       = inv.items.some((it) => it.actual_quantity != null);
-
-                      // Deal = harga jual × vol, excl PPN customer
-                      const invDeal    = inv.items.reduce((s, it) => s + billedQty(it) * Number(it.unit_price   || 0), 0);
-                      // AJM = harga net perusahaan
-                      const invAjm     = inv.items.reduce((s, it) => s + billedQty(it) * (it.ajm_price != null ? Number(it.ajm_price) : Number(it.unit_price || 0)), 0);
-                      // HPP = harga beli × vol, excl PPN supplier
-                      const invHpp     = inv.items.reduce((s, it) => s + billedQty(it) * Number(it.buy_in_price || 0), 0);
-                      
-                      const invShipping  = Number(inv.shipping_fee || 0);
-                      const invProfit    = invAjm - invHpp + invShipping;
-
-                      return (
-                        <tr key={inv.id} className="hover:bg-muted/20 transition-colors">
-                          <td className="p-3 align-middle font-semibold text-primary">
-                            <Link href={`/tracker/invoices/${inv.id}`}>
-                              {inv.invoice_number.replace(/^INV-/, "TRX-")}
-                            </Link>
-                          </td>
-                          <td className="p-3 align-middle">
-                            <p className="font-semibold text-foreground">{inv.client.company || inv.client.name}</p>
-                            {inv.notes && (
-                              <p className="text-[10px] text-muted-foreground truncate max-w-[180px]" title={inv.notes}>
-                                {inv.notes}
-                              </p>
-                            )}
-                          </td>
-                          <td className="p-3 align-middle text-center font-medium">
-                            {hasActual ? (
-                              <div>
-                                <p className="font-bold">{invVolumeActual.toLocaleString("id-ID", { maximumFractionDigits: 2 })} m³</p>
-                                {invVolumeActual !== invVolumeDeal && (
-                                  <p className="text-[10px] text-amber-600">deal: {invVolumeDeal.toLocaleString("id-ID", { maximumFractionDigits: 2 })} m³</p>
-                                )}
-                              </div>
-                            ) : (
-                              <span>{invVolumeDeal.toLocaleString("id-ID", { maximumFractionDigits: 2 })} m³</span>
-                            )}
-                          </td>
-                          {/* Deal */}
-                          <td className="p-3 align-middle text-right font-medium">
-                            Rp {invDeal.toLocaleString("id-ID")}
-                          </td>
-                          {/* Laba bersih */}
-                          <td className={`p-3 align-middle text-right font-bold ${
-                            invHpp > 0 ? (invProfit >= 0 ? "text-emerald-600" : "text-red-600") : "text-muted-foreground"
-                          }`}>
-                            {invHpp > 0 ? `Rp ${invProfit.toLocaleString("id-ID")}` : "-"}
-                          </td>
-                          <td className="p-3 align-middle text-center">
-                            <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                              inv.status === "selesai"
-                                ? "bg-emerald-100 text-emerald-800"
-                                : inv.status === "pengiriman"
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-gray-100 text-gray-800"
-                            }`}>
-                              {inv.status.toUpperCase()}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  {invoices.length === 0 && (
-                    <tr>
-                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
-                        Belum ada data transaksi keuangan.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination Controls for Margin Table */}
-            {(() => {
-              const nonBatal = invoices.filter((inv) => inv.status !== "batal");
-              const totalMarginPages = Math.ceil(nonBatal.length / MARGIN_PER_PAGE) || 1;
-              if (totalMarginPages <= 1) return null;
-              return (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t text-xs text-muted-foreground">
-                  <div>
-                    Menampilkan <span className="font-bold text-foreground">{(marginPage - 1) * MARGIN_PER_PAGE + 1}</span> - <span className="font-bold text-foreground">{Math.min(marginPage * MARGIN_PER_PAGE, nonBatal.length)}</span> dari <span className="font-bold text-foreground">{nonBatal.length}</span> transaksi
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 px-2 text-xs"
-                      disabled={marginPage === 1}
-                      onClick={() => setMarginPage((p) => Math.max(1, p - 1))}
-                    >
-                      Sebelumnya
-                    </Button>
-                    <span className="px-2.5 font-semibold text-foreground">
-                      {marginPage} / {totalMarginPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 px-2 text-xs"
-                      disabled={marginPage === totalMarginPages}
-                      onClick={() => setMarginPage((p) => Math.min(totalMarginPages, p + 1))}
-                    >
-                      Selanjutnya
-                    </Button>
-                  </div>
-                </div>
-              );
-            })()}
+          {/* Rincian margin transaksi disembunyikan untuk dashboard */}
+          <section className="rounded-lg border bg-card p-4">
+            <h2 className="text-sm font-bold text-foreground">Rincian transaksi</h2>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Detail margin per transaksi tidak ditampilkan di dashboard agar tampilan lebih ringkas dan aman.
+            </p>
           </section>
         </>
       ) : activeTab === "sales" ? (
@@ -984,8 +823,8 @@ export function InvoiceDashboard() {
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Top Royal / Menguntungkan */}
-            <section className="rounded-lg border bg-card p-4 space-y-3">
-              <h2 className="text-xs font-bold text-emerald-600 uppercase tracking-wide">
+            <section className="rounded-lg border border-primary/20 bg-white p-4 space-y-3 shadow-none">
+              <h2 className="text-xs font-bold text-primary uppercase tracking-wide">
                 Pelanggan Royal
               </h2>
               {stats.topBuyers.length === 0 ? (
@@ -993,8 +832,8 @@ export function InvoiceDashboard() {
               ) : (
                 <div className="divide-y text-xs">
                   {stats.topBuyers.slice(0, 5).map((buyer, idx) => (
-                    <div key={buyer.id} className="flex items-center gap-3 py-2.5 px-1 hover:bg-emerald-50/50 rounded transition-colors">
-                      <div className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 font-bold text-[10px] shrink-0">
+                    <div key={buyer.id} className="flex items-center gap-3 py-2.5 px-1 hover:bg-primary/5 rounded transition-colors">
+                      <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary font-bold text-[10px] shrink-0">
                         {idx + 1}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -1002,7 +841,7 @@ export function InvoiceDashboard() {
                         {buyer.company && <p className="truncate text-[10px] text-muted-foreground mt-0.5">{buyer.name}</p>}
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="font-bold text-emerald-600">Rp {buyer.totalDeal.toLocaleString("id-ID")}</p>
+                        <p className="font-bold text-primary">Rp {buyer.totalDeal.toLocaleString("id-ID")}</p>
                         <p className="text-[10px] text-muted-foreground mt-0.5">{buyer.totalVolume.toLocaleString("id-ID", { maximumFractionDigits: 2 })} m³</p>
                       </div>
                     </div>
@@ -1012,8 +851,8 @@ export function InvoiceDashboard() {
             </section>
 
             {/* Sering Belum Lunas */}
-            <section className="rounded-lg border bg-card p-4 space-y-3">
-              <h2 className="text-xs font-bold text-red-600 uppercase tracking-wide">
+            <section className="rounded-lg border border-primary/20 bg-white p-4 space-y-3 shadow-none">
+              <h2 className="text-xs font-bold text-primary uppercase tracking-wide">
                 Belum Lunas
               </h2>
               {stats.topUnpaidBuyers.length === 0 ? (
@@ -1021,15 +860,15 @@ export function InvoiceDashboard() {
               ) : (
                 <div className="divide-y text-xs">
                   {stats.topUnpaidBuyers.slice(0, 5).map((buyer, idx) => (
-                    <div key={buyer.id} className="flex items-center gap-3 py-2.5 px-1 hover:bg-red-50/50 rounded transition-colors">
-                      <div className="flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-600 font-bold text-[10px] shrink-0">
+                    <div key={buyer.id} className="flex items-center gap-3 py-2.5 px-1 hover:bg-primary/5 rounded transition-colors">
+                      <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary font-bold text-[10px] shrink-0">
                         {idx + 1}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-semibold text-foreground">{buyer.company || buyer.name}</p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="font-bold text-red-600">Rp {buyer.totalOutstanding.toLocaleString("id-ID")}</p>
+                        <p className="font-bold text-primary">Rp {buyer.totalOutstanding.toLocaleString("id-ID")}</p>
                         <p className="text-[10px] text-muted-foreground mt-0.5">{buyer.invoiceCount} Transaksi</p>
                       </div>
                     </div>
@@ -1039,8 +878,8 @@ export function InvoiceDashboard() {
             </section>
 
             {/* Produk Paling Laris */}
-            <section className="rounded-lg border bg-card p-4 space-y-3">
-              <h2 className="text-xs font-bold text-blue-600 uppercase tracking-wide">
+            <section className="rounded-lg border border-primary/20 bg-white p-4 space-y-3 shadow-none">
+              <h2 className="text-xs font-bold text-primary uppercase tracking-wide">
                 Produk Laris
               </h2>
               {stats.topProducts.length === 0 ? (
@@ -1048,15 +887,15 @@ export function InvoiceDashboard() {
               ) : (
                 <div className="divide-y text-xs">
                   {stats.topProducts.slice(0, 5).map((p, idx) => (
-                    <div key={p.name} className="flex items-center gap-3 py-2.5 px-1 hover:bg-blue-50/50 rounded transition-colors">
-                      <div className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-600 font-bold text-[10px] shrink-0">
+                    <div key={p.name} className="flex items-center gap-3 py-2.5 px-1 hover:bg-primary/5 rounded transition-colors">
+                      <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary font-bold text-[10px] shrink-0">
                         {idx + 1}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-semibold text-foreground">{p.name}</p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="font-bold text-blue-600">Rp {p.revenue.toLocaleString("id-ID")}</p>
+                        <p className="font-bold text-primary">Rp {p.revenue.toLocaleString("id-ID")}</p>
                         <p className="text-[10px] text-muted-foreground mt-0.5">{p.volume.toLocaleString("id-ID", { maximumFractionDigits: 2 })} m³</p>
                       </div>
                     </div>
@@ -1066,8 +905,8 @@ export function InvoiceDashboard() {
             </section>
 
             {/* Tujuan Populer */}
-            <section className="rounded-lg border bg-card p-4 space-y-3">
-              <h2 className="text-xs font-bold text-purple-600 uppercase tracking-wide">
+            <section className="rounded-lg border bg-white p-4 space-y-3">
+              <h2 className="text-xs font-bold text-primary uppercase tracking-wide">
                 Tujuan Populer
               </h2>
               {stats.topDestinations.length === 0 ? (
@@ -1075,15 +914,15 @@ export function InvoiceDashboard() {
               ) : (
                 <div className="divide-y text-xs">
                   {stats.topDestinations.slice(0, 5).map((d, idx) => (
-                    <div key={d.city} className="flex items-center gap-3 py-2.5 px-1 hover:bg-purple-50/50 rounded transition-colors">
-                      <div className="flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 text-purple-600 font-bold text-[10px] shrink-0">
+                    <div key={d.location} className="flex items-center gap-3 py-2.5 px-1 hover:bg-primary/5 rounded transition-colors">
+                      <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary font-bold text-[10px] shrink-0">
                         {idx + 1}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-semibold text-foreground">{d.city}</p>
+                        <p className="truncate font-semibold text-foreground">{d.location}</p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="font-bold text-purple-600">Rp {d.revenue.toLocaleString("id-ID")}</p>
+                        <p className="font-bold text-primary">Rp {d.revenue.toLocaleString("id-ID")}</p>
                         <p className="text-[10px] text-muted-foreground mt-0.5">{d.count} Pesanan</p>
                       </div>
                     </div>

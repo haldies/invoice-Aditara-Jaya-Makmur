@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Invoice } from "@/types/invoice";
 import { loadCompanyProfile } from "@/lib/companyProfile";
-import { fmt, fmtDate, handleDownloadPDF, handlePdfAction } from "./stageUtils";
+import { fmt, fmtDateTime, handleDownloadPDF, handlePdfAction } from "./stageUtils";
 import { Button } from "@/components/ui/button";
 import { FileText, Receipt, Package, Truck, CheckCircle, AlertTriangle } from "lucide-react";
 import { PdfAction } from "@/lib/pdfExport";
@@ -32,7 +32,7 @@ export function SalesReadOnlyView({ invoice }: Props) {
       <div className="flex items-center gap-3 rounded-2xl px-5 py-4 border bg-slate-50 border-slate-200">
         <div>
           <p className="font-black text-base text-foreground">{statusLabel}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{invoice.invoice_number}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Nomor Transaksi {invoice.invoice_number}</p>
         </div>
       </div>
 
@@ -48,7 +48,7 @@ export function SalesReadOnlyView({ invoice }: Props) {
         {(invoice.notes || invoice.due_date) && (
           <div className="mt-3 pt-3 border-t space-y-1">
             {invoice.due_date && (
-              <p className="text-xs text-muted-foreground"><span className="font-semibold">Tgl Kirim:</span> {fmtDate(invoice.due_date)}</p>
+              <p className="text-xs text-muted-foreground"><span className="font-semibold">Tgl Pengiriman:</span> {fmtDateTime(invoice.due_date)}</p>
             )}
             {invoice.notes && (
               <p className="text-xs text-muted-foreground"><span className="font-semibold">Lokasi:</span> {invoice.notes}</p>

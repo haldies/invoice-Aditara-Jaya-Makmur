@@ -3,6 +3,7 @@ import useSWR from "swr";
 import { useToast } from "@/hooks/use-toast";
 import { swrFetcher } from "@/lib/swrConfig";
 import { Invoice, InvoiceInput, PaginatedResult } from "@/types/invoice";
+import type { UpdateInvoiceInput } from "@/lib/repositories/invoiceRepo";
 
 const API_KEY = "/api/invoices";
 
@@ -55,7 +56,7 @@ export function useInvoices(params?: Record<string, any>) {
   );
 
   const updateInvoice = useCallback(
-    async (id: string, updates: Partial<InvoiceInput> & { version?: number }) => {
+    async (id: string, updates: UpdateInvoiceInput) => {
       const previous = invoices;
       const response = await fetch(`${API_KEY}/${id}`, {
         method: "PATCH",
