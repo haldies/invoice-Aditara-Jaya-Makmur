@@ -92,12 +92,10 @@ function SettingsPage() {
   return (
     <>
       <Head>
-        <title>Settings | {APP_NAME}</title>
+        <title>Pengaturan | {APP_NAME}</title>
       </Head>
       <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-8">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Pengaturan</h1>
-        </div>
+
 
         {/* Clean Underline Tabs */}
         <div className="flex border-b border-border">
