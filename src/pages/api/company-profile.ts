@@ -28,7 +28,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === "GET") {
     const row = await companyProfileModel.findFirst();
-    return res.status(200).json({ profile: row ? toProfile(row) : defaultCompanyProfile });
+    if (row) {
+      return res.status(200).json({ profile: toProfile(row) });
+    }
+
+    const now = new Date().toISOString();
+    const created = await companyProfileModel.create({
+      data: {
+        id: crypto.randomUUID(),
+        company_name: defaultCompanyProfile.companyName,
+        address: defaultCompanyProfile.address,
+        city: defaultCompanyProfile.city,
+        phone: defaultCompanyProfile.phone,
+        email: defaultCompanyProfile.email,
+        npwp: defaultCompanyProfile.npwp,
+        bank_name: defaultCompanyProfile.bankName,
+        bank_account: defaultCompanyProfile.bankAccount,
+        bank_account_holder: defaultCompanyProfile.bankAccountHolder,
+        logo_base64: defaultCompanyProfile.logoBase64,
+        logo_right_base64: defaultCompanyProfile.logoRightBase64,
+        signature_base64: defaultCompanyProfile.signatureBase64,
+        created_at: now,
+        updated_at: now,
+      },
+    });
+
+    return res.status(200).json({ profile: toProfile(created) });
   }
 
   if (req.method === "PUT") {
