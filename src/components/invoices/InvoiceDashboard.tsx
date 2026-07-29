@@ -389,8 +389,8 @@ export function InvoiceDashboard() {
       const topOutstandingAmt = topUnpaidBuyers.length > 0 ? topUnpaidBuyers[0].totalOutstanding : 0;
       businessInsights.push({
         type: "danger",
-        title: "Resiko Cashflow (Piutang)",
-        desc: `Total Piutang Berjalan: Rp ${outstanding.toLocaleString("id-ID")}\nPenunggak Terbesar: ${topOustandingName} (Rp ${topOutstandingAmt.toLocaleString("id-ID")})`
+        title: "Status Piutang Transaksi",
+        desc: `Total Piutang Berjalan: Rp ${outstanding.toLocaleString("id-ID")}\nBelum Lunas Terbesar: ${topOustandingName} (Rp ${topOutstandingAmt.toLocaleString("id-ID")})`
       });
     }
 
@@ -832,7 +832,9 @@ export function InvoiceDashboard() {
                       return (
                         <tr key={inv.id} className="hover:bg-muted/20 transition-colors">
                           <td className="p-3 align-middle font-semibold text-primary">
-                            <Link href={`/tracker/invoices/${inv.id}`}>{inv.invoice_number}</Link>
+                            <Link href={`/tracker/invoices/${inv.id}`}>
+                              {inv.invoice_number.replace(/^INV-/, "TRX-")}
+                            </Link>
                           </td>
                           <td className="p-3 align-middle">
                             <p className="font-semibold text-foreground">{inv.client.company || inv.client.name}</p>
@@ -1012,7 +1014,7 @@ export function InvoiceDashboard() {
             {/* Sering Belum Lunas */}
             <section className="rounded-lg border bg-card p-4 space-y-3">
               <h2 className="text-xs font-bold text-red-600 uppercase tracking-wide">
-                Sering Nunggak
+                Belum Lunas
               </h2>
               {stats.topUnpaidBuyers.length === 0 ? (
                 <p className="text-xs text-muted-foreground italic py-3 text-center">Aman, tidak ada piutang</p>

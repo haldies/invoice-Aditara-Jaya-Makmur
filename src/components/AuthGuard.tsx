@@ -15,8 +15,11 @@ export function AuthGuard({ children }: { children: ReactNode }) {
 
   if (loading || !user) {
     return (
-      <main className="min-h-screen grid place-items-center bg-background">
-        <p className="text-sm text-muted-foreground">Memeriksa sesi...</p>
+      <main className="fixed inset-0 grid place-items-center bg-background z-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-3 border-primary border-t-transparent" />
+          <div className="h-3 w-24 bg-muted animate-pulse rounded-full" />
+        </div>
       </main>
     );
   }

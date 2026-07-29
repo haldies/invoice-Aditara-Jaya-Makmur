@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { FilePlus, Search, Trash2, Eye, Printer, Filter, Calendar, Building2, User, X, FileText, ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
-import { useMemo, useState, useEffect } from "react";
-import { Badge } from "@/components/ui/badge";
+import {Search, Trash2, Eye, Printer, Filter, Calendar, Building2, User, X, FileText, ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useInvoices, useInvoiceFilterOptions } from "@/hooks/useInvoices";
@@ -53,6 +52,35 @@ export function InvoiceList() {
   const { user } = useAuth();
   const router = useRouter();
   
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [dateRangePreset, setDateRangePreset] = useState("all");
+
+  const handleDatePresetChange = (preset: string) => {
+    setDateRangePreset(preset);
+    const now = new Date();
+    if (preset === "today") {
+      const d = now.toISOString().slice(0, 10);
+      setStartDate(d);
+      setEndDate(d);
+    } else if (preset === "7days") {
+      const past = new Date(now.getTime() - 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+      setStartDate(past);
+      setEndDate(now.toISOString().slice(0, 10));
+    } else if (preset === "30days") {
+      const past = new Date(now.getTime() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+      setStartDate(past);
+      setEndDate(now.toISOString().slice(0, 10));
+    } else if (preset === "this_month") {
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, "0");
+      setStartDate(`${y}-${m}-01`);
+      setEndDate(now.toISOString().slice(0, 10));
+    } else {
+      setStartDate("");
+      setEndDate("");
+    }
+  };
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
@@ -79,6 +107,8 @@ export function InvoiceList() {
         if (parsed.sortOrder) setSortOrder(parsed.sortOrder);
         if (parsed.productFilter) setProductFilter(parsed.productFilter);
         if (parsed.cityFilter) setCityFilter(parsed.cityFilter);
+        if (parsed.startDate) setStartDate(parsed.startDate);
+        if (parsed.endDate) setEndDate(parsed.endDate);
         if (parsed.search) setSearch(parsed.search);
       }
     } catch (e) {}
@@ -88,10 +118,10 @@ export function InvoiceList() {
   useEffect(() => {
     try {
       sessionStorage.setItem("invoiceFilters", JSON.stringify({
-        statusFilter, paymentFilter, clientFilter, salesFilter, supplierFilter, sortOrder, productFilter, cityFilter, search
+        statusFilter, paymentFilter, clientFilter, salesFilter, supplierFilter, sortOrder, productFilter, cityFilter, startDate, endDate, search
       }));
     } catch (e) {}
-  }, [statusFilter, paymentFilter, clientFilter, salesFilter, supplierFilter, sortOrder, productFilter, cityFilter, search]);
+  }, [statusFilter, paymentFilter, clientFilter, salesFilter, supplierFilter, sortOrder, productFilter, cityFilter, startDate, endDate, search]);
 
   const debouncedSearch = useDebounce(search, 500);
 
@@ -106,6 +136,8 @@ export function InvoiceList() {
     supplier: supplierFilter,
     product: productFilter,
     city: cityFilter,
+    start_date: startDate,
+    end_date: endDate,
     sort: sortOrder,
     page: currentPage,
     limit: ITEMS_PER_PAGE,
@@ -134,7 +166,7 @@ export function InvoiceList() {
     <div className="space-y-6 p-4 md:p-6 max-w-6xl mx-auto">
       {/* Controls & Filter Bar */}
       <div className="flex flex-col gap-4 bg-card p-4 rounded-xl border shadow-xs">
-        {/* Row 1: Search and Filter/Create Action */}
+        {/* Row 1: Search */}
         <div className="flex items-center gap-2">
           <div className="flex-1 relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -145,19 +177,24 @@ export function InvoiceList() {
               className="pl-9 h-10 text-xs w-full"
             />
           </div>
-
-          {!isRestrictedUser && (
-            <Button asChild className="h-10 font-bold text-xs bg-primary text-primary-foreground hover:bg-primary/90 shrink-0">
-              <Link href="/tracker/invoices/new">
-                <FilePlus className="mr-1.5 h-4 w-4" />
-                Buat Transaksi
-              </Link>
-            </Button>
-          )}
         </div>
 
         {/* Row 2: Filter Select Dropdowns */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-2 border-t pt-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 border-t pt-3">
+          {/* Periode Tanggal Dropdown */}
+          <Select value={dateRangePreset} onValueChange={handleDatePresetChange}>
+            <SelectTrigger className="h-9 text-xs font-semibold">
+              <SelectValue placeholder="Semua Periode" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Periode</SelectItem>
+              <SelectItem value="today">Hari Ini</SelectItem>
+              <SelectItem value="7days">7 Hari Terakhir</SelectItem>
+              <SelectItem value="30days">30 Hari Terakhir</SelectItem>
+              <SelectItem value="this_month">Bulan Ini</SelectItem>
+            </SelectContent>
+          </Select>
+
           {/* Status Pembayaran */}
           <Select value={paymentFilter} onValueChange={setPaymentFilter}>
             <SelectTrigger className="h-9 text-xs font-semibold">
@@ -366,7 +403,7 @@ export function InvoiceList() {
                   <div className="flex items-start justify-between gap-3 mb-2.5">
                     <div className="min-w-0">
                       <h4 className="font-extrabold text-xs text-foreground truncate group-hover:text-primary transition-colors">
-                        {invoice.invoice_number}
+                        {invoice.invoice_number.replace(/^INV-/, "TRX-")}
                       </h4>
                       <p className="text-[11px] text-slate-700 dark:text-slate-300 font-semibold truncate mt-0.5">
                         {invoice.client.company || invoice.client.name}

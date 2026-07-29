@@ -235,7 +235,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
   useEffect(() => {
     const handleConflict = () => {
       toast({
-        title: "⚠️ Konflik Data Terdeteksi",
+        title: "Konflik Data Terdeteksi",
         description: "Data ini telah diubah di perangkat lain. Sistem membatalkan sinkronisasi untuk mencegah penimpaan data. Silakan muat ulang halaman.",
         variant: "destructive",
       });
@@ -259,7 +259,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
           }}
         >
           {title && <h1 className="text-base font-semibold text-foreground truncate flex-1">{title}</h1>}
-          {/* Sync status indicator — only shows when offline or pending sync */}
+          {/* Sync status indicator - only shows when offline or pending sync */}
         </header>
         <main
           className="flex-1 app-scroll"

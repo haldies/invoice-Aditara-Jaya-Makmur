@@ -46,6 +46,26 @@ export function saveCompanyProfile(profile: CompanyProfile): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
 }
 
+export async function loadCompanyProfileFromApi(): Promise<CompanyProfile> {
+  const res = await fetch("/api/company-profile");
+  if (!res.ok) return defaultCompanyProfile;
+  const data = await res.json();
+  return { ...defaultCompanyProfile, ...data.profile };
+}
+
+export async function saveCompanyProfileToApi(profile: CompanyProfile): Promise<CompanyProfile> {
+  const res = await fetch("/api/company-profile", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(profile),
+  });
+  if (!res.ok) {
+    throw new Error("Gagal menyimpan profil perusahaan");
+  }
+  const data = await res.json();
+  return { ...defaultCompanyProfile, ...data.profile };
+}
+
 export function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

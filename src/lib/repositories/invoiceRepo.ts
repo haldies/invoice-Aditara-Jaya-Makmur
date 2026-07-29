@@ -162,13 +162,19 @@ export async function listInvoices(
   const where: Prisma.InvoiceWhereInput = ownershipWhere(actor);
   
   if (filters.status && filters.status !== "all") {
-    if (typeof filters.status === "string" && filters.status.includes(",")) {
-      where.status = { in: filters.status.split(",") as any[] };
-    } else {
-      where.status = filters.status;
-    }
+    where.status = filters.status;
   }
   
+  if (filters.start_date || filters.end_date) {
+    where.issue_date = {};
+    if (filters.start_date) {
+      where.issue_date.gte = filters.start_date;
+    }
+    if (filters.end_date) {
+      where.issue_date.lte = filters.end_date;
+    }
+  }
+
   if (filters.payment_status && filters.payment_status !== "all") {
     // Determine payment status using a raw query
     if (filters.payment_status === "lunas") {

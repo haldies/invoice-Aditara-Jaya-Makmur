@@ -91,7 +91,7 @@ export default function UsersPage() {
     <AuthGuard>
       <AppLayout title="Pengguna Sistem">
         <div className="max-w-4xl mx-auto space-y-6">
-          <div className="flex justify-between items-center bg-card p-4 rounded-xl border">
+          <div className="flex justify-between items-center p-2">
             <div>
               <h2 className="text-lg font-black">
                 Pengguna Sistem

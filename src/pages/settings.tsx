@@ -87,6 +87,7 @@ function SettingsPage() {
   };
 
   const canManageRoles = user && (user.role === "owner" || user.role === "admin" || user.role === "manager");
+  const canEditCompanyProfile = !!user;
 
   return (
     <>
@@ -111,7 +112,7 @@ function SettingsPage() {
           >
             Akun Saya
           </button>
-          {canManageRoles && (
+          {canEditCompanyProfile && (
             <button
               type="button"
               onClick={() => setActiveTab("company")}
@@ -166,7 +167,7 @@ function SettingsPage() {
             </section>
           )}
 
-          {activeTab === "company" && canManageRoles && (
+          {activeTab === "company" && canEditCompanyProfile && (
             <CompanyProfileSection />
           )}
 

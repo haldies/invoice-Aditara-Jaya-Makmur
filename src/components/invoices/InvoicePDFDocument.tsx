@@ -1,5 +1,6 @@
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 import { Invoice } from "@/types/invoice";
+import { CompanyProfile, defaultCompanyProfile } from "@/lib/companyProfile";
 import { formatClientAddress } from "@/lib/pdfUtils";
 
 const styles = StyleSheet.create({
@@ -14,6 +15,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 40,
   },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  logo: {
+    width: 72,
+    height: 36,
+    objectFit: "contain",
+  },
   title: {
     fontSize: 24,
     fontFamily: "Helvetica-Bold",
@@ -21,6 +32,16 @@ const styles = StyleSheet.create({
   },
   invoiceDetails: {
     textAlign: "right",
+  },
+  companyName: {
+    fontSize: 10,
+    fontFamily: "Helvetica-Bold",
+    marginTop: 2,
+  },
+  companyMeta: {
+    fontSize: 8,
+    color: "#555",
+    marginTop: 1,
   },
   sectionTitle: {
     fontSize: 12,
@@ -126,7 +147,13 @@ const formatCurrency = (amount: number, currency: string) => {
   }).format(amount);
 };
 
-export const InvoicePDFDocument = ({ invoice }: { invoice: Invoice }) => {
+export const InvoicePDFDocument = ({
+  invoice,
+  company = defaultCompanyProfile,
+}: {
+  invoice: Invoice;
+  company?: CompanyProfile;
+}) => {
   const subtotal = invoice.items.reduce(
     (sum, item) => sum + Number(item.quantity || 0) * Number(item.unit_price || 0),
     0
@@ -140,8 +167,13 @@ export const InvoicePDFDocument = ({ invoice }: { invoice: Invoice }) => {
       <Page size="A4" style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
-          <View>
+          <View style={styles.headerLeft}>
+            {company.logoBase64 ? <Image src={company.logoBase64} style={styles.logo} /> : null}
+            <View>
             <Text style={styles.title}>INVOICE</Text>
+              <Text style={styles.companyName}>{company.companyName || "CV ADITARA JAYA MAKMUR"}</Text>
+              <Text style={styles.companyMeta}>{company.city || ""}</Text>
+            </View>
           </View>
           <View style={styles.invoiceDetails}>
             <Text style={styles.textBold}>{invoice.invoice_number}</Text>
@@ -162,8 +194,10 @@ export const InvoicePDFDocument = ({ invoice }: { invoice: Invoice }) => {
           </View>
           <View style={styles.ourBox}>
             <Text style={styles.sectionTitle}>From</Text>
-            <Text style={styles.textBold}>User</Text>
-            {/* You could optionally inject user's own profile info here if available */}
+            <Text style={styles.textBold}>{company.companyName || "User"}</Text>
+            {company.address ? <Text>{company.address}</Text> : null}
+            {company.phone ? <Text>{company.phone}</Text> : null}
+            {company.email ? <Text>{company.email}</Text> : null}
           </View>
         </View>
 
@@ -234,6 +268,11 @@ export const InvoicePDFDocument = ({ invoice }: { invoice: Invoice }) => {
 
         {/* Footer */}
         <View style={styles.footer}>
+          {company.signatureBase64 ? (
+            <View style={{ alignItems: "center", marginBottom: 6 }}>
+              <Image src={company.signatureBase64} style={{ width: 90, height: 45, objectFit: "contain" }} />
+            </View>
+          ) : null}
           <Text style={{ textAlign: "center" }}>
             Thank you for your business.
           </Text>

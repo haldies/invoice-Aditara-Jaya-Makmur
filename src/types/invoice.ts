@@ -141,6 +141,8 @@ export interface InvoiceFilters {
   product?: string;
   supplier?: string;
   city?: string;
+  start_date?: string;
+  end_date?: string;
   sort?: string;
   page?: number;
   limit?: number;

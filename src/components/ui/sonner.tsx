@@ -15,12 +15,26 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      position="top-right"
+      richColors
+      closeButton
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,
         warning: <TriangleAlertIcon className="size-4" />,
         error: <OctagonXIcon className="size-4" />,
         loading: <Loader2Icon className="size-4 animate-spin" />,
+      }}
+      toastOptions={{
+        classNames: {
+          toast:
+            "group toast group-[.toaster]:bg-slate-950 group-[.toaster]:text-slate-50 group-[.toaster]:border-slate-800 group-[.toaster]:shadow-2xl dark:group-[.toaster]:bg-slate-100 dark:group-[.toaster]:text-slate-950 dark:group-[.toaster]:border-slate-200",
+          description: "group-[.toast]:text-slate-300 dark:group-[.toast]:text-slate-600",
+          actionButton:
+            "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground group-[.toast]:hover:bg-primary/90",
+          cancelButton:
+            "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+        },
       }}
       style={
         {

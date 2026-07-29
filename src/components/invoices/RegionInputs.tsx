@@ -88,9 +88,23 @@ export function RegionInputs({ client, onChange }: { client: any, onChange: (key
   const [selectedProvCode, setSelectedProvCode] = useState<string>("");
   const [selectedCityCode, setSelectedCityCode] = useState<string>("");
 
+  // Popular destination cities
+  const popularCities = [
+    { city: "KABUPATEN SUKABUMI", province: "JAWA BARAT" },
+    { city: "KOTA SUKABUMI", province: "JAWA BARAT" },
+    { city: "KABUPATEN BOGOR", province: "JAWA BARAT" },
+    { city: "KOTA BANDUNG", province: "JAWA BARAT" },
+    { city: "KOTA ADM. JAKARTA SELATAN", province: "DKI JAKARTA" },
+  ];
+
   useEffect(() => {
     fetch("/api/area/provinces").then(res => res.json()).then(data => setProvinces(data));
   }, []);
+
+  const selectPopularCity = async (popular: { city: string, province: string }) => {
+    onChange("province", popular.province);
+    onChange("city", popular.city);
+  };
 
   const handleProvChange = async (val: string) => {
     const prov = provinces.find((p) => p.code === val);

@@ -7,7 +7,9 @@ import {
   CompanyProfile,
   defaultCompanyProfile,
   loadCompanyProfile,
+  loadCompanyProfileFromApi,
   saveCompanyProfile,
+  saveCompanyProfileToApi,
   fileToBase64,
 } from "@/lib/companyProfile";
 
@@ -25,15 +27,29 @@ export function CompanyProfileSection({ onSave }: Props) {
   const signatureInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setProfile(loadCompanyProfile());
+    loadCompanyProfileFromApi()
+      .then((serverProfile) => {
+        setProfile(serverProfile);
+        saveCompanyProfile(serverProfile);
+      })
+      .catch(() => {
+        setProfile(loadCompanyProfile());
+      });
   }, []);
 
-  const handleSave = () => {
-    saveCompanyProfile(profile);
-    setSaved(true);
-    setIsEditing(false);
-    setTimeout(() => setSaved(false), 2000);
-    onSave?.();
+  const handleSave = async () => {
+    try {
+      const savedProfile = await saveCompanyProfileToApi(profile);
+      saveCompanyProfile(savedProfile);
+      setProfile(savedProfile);
+      setSaved(true);
+      setIsEditing(false);
+      setTimeout(() => setSaved(false), 2000);
+      onSave?.();
+    } catch (err) {
+      console.error(err);
+      alert("Gagal menyimpan profil perusahaan ke database.");
+    }
   };
 
   const handleCancel = () => {
@@ -41,25 +57,30 @@ export function CompanyProfileSection({ onSave }: Props) {
     setIsEditing(false);
   };
 
+  const uploadToBase64 = async (file: File): Promise<string> => {
+    const base64 = await fileToBase64(file);
+    return base64;
+  };
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const base64 = await fileToBase64(file);
-    setProfile((prev) => ({ ...prev, logoBase64: base64 }));
+    const url = await uploadToBase64(file);
+    setProfile((prev) => ({ ...prev, logoBase64: url }));
   };
 
   const handleLogoRightUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const base64 = await fileToBase64(file);
-    setProfile((prev) => ({ ...prev, logoRightBase64: base64 }));
+    const url = await uploadToBase64(file);
+    setProfile((prev) => ({ ...prev, logoRightBase64: url }));
   };
 
   const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const base64 = await fileToBase64(file);
-    setProfile((prev) => ({ ...prev, signatureBase64: base64 }));
+    const url = await uploadToBase64(file);
+    setProfile((prev) => ({ ...prev, signatureBase64: url }));
   };
 
   if (!isEditing) {
