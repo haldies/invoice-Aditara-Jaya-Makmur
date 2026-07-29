@@ -46,7 +46,10 @@ const styles = StyleSheet.create({
   companyDetailLabel: { width: 35 },
   headerRight: {
     alignItems: "center",
+    justifyContent: "center",
+    maxWidth: 120,
   },
+  logoRight: { width: 80, height: 40, objectFit: "contain" },
   // Title
   titleText: {
     textAlign: "center",
@@ -241,7 +244,7 @@ export const TemplateModern = ({ invoice, company, includePpn }: Props) => {
             </View>
           </View>
           <View style={styles.headerRight}>
-            {/* Can render secondary logo here if provided */}
+            {company.logoRightBase64 ? <Image src={company.logoRightBase64} style={styles.logoRight} /> : null}
           </View>
         </View>
 
@@ -397,4 +400,3 @@ export const TemplateModern = ({ invoice, company, includePpn }: Props) => {
     </Document>
   );
 };
-

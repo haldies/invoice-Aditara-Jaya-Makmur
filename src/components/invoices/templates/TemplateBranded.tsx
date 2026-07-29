@@ -26,7 +26,8 @@ const styles = StyleSheet.create({
   logo: { width: 90, height: 45, objectFit: "contain" },
   companyNameWhite: { fontSize: 16, fontFamily: "Helvetica-Bold", color: "#ffffff" },
   companyTagline: { fontSize: 9, color: "rgba(255,255,255,0.7)", marginTop: 2 },
-  headerRight: { alignItems: "flex-end" },
+  headerRight: { alignItems: "flex-end", justifyContent: "center", maxWidth: 140 },
+  logoRight: { width: 80, height: 40, objectFit: "contain", marginBottom: 4 },
   invoiceTitleWhite: { fontSize: 26, fontFamily: "Helvetica-Bold", color: "#ffffff", letterSpacing: -0.5 },
   invoiceNumWhite: { fontSize: 11, color: "rgba(255,255,255,0.8)", marginTop: 4 },
   accentStrip: { backgroundColor: BRAND_LIGHT, paddingHorizontal: 48, paddingVertical: 14, flexDirection: "row", justifyContent: "space-between" },
@@ -141,6 +142,7 @@ export const TemplateBranded = ({ invoice, company, includePpn }: Props) => {
             {company.address && <Text style={styles.companyTagline}>{company.address}{company.city ? `, ${company.city}` : ""}</Text>}
           </View>
           <View style={styles.headerRight}>
+            {company.logoRightBase64 ? <Image src={company.logoRightBase64} style={styles.logoRight} /> : null}
             <Text style={styles.invoiceTitleWhite}>INVOICE</Text>
             <Text style={styles.invoiceNumWhite}>{invoice.invoice_number}</Text>
           </View>

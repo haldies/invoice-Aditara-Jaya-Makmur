@@ -46,11 +46,19 @@ const styles = StyleSheet.create({
   companyDetailLabel: { width: 35 },
   headerRight: {
     alignItems: "flex-end",
+    justifyContent: "flex-start",
+    maxWidth: 140,
+  },
+  logoRight: {
+    width: 90,
+    height: 45,
+    objectFit: "contain",
+    marginBottom: 4,
   },
   dealerText: {
     fontSize: 8,
     fontFamily: "Helvetica-Bold",
-    marginTop: 25,
+    textAlign: "right",
   },
 
   dateLocation: {
@@ -238,6 +246,7 @@ export const QuotationPDF = ({ invoice, company, includePpn = false }: Props) =>
             </View>
           </View>
           <View style={styles.headerRight}>
+            {company.logoRightBase64 ? <Image src={company.logoRightBase64} style={styles.logoRight} /> : null}
             <Text style={styles.dealerText}>Authorized Dealer of Jayamix</Text>
           </View>
         </View>

@@ -31,6 +31,7 @@ const styles = StyleSheet.create({
     borderLeftColor: "#c8a96e",
     alignItems: "flex-end",
   },
+  logoRight: { width: 80, height: 40, objectFit: "contain", marginBottom: 8 },
   logo: { width: 90, height: 45, objectFit: "contain", marginBottom: 12 },
   companyNameWhite: { fontSize: 14, fontFamily: "Helvetica-Bold", color: "#ffffff" },
   companyDetailWhite: { fontSize: 9, color: "rgba(255,255,255,0.65)", marginTop: 2 },
@@ -153,6 +154,7 @@ export const TemplateCorporate = ({ invoice, company, includePpn }: Props) => {
             {company.npwp && <Text style={styles.companyDetailWhite}>NPWP: {company.npwp}</Text>}
           </View>
           <View style={styles.headerRight}>
+            {company.logoRightBase64 ? <Image src={company.logoRightBase64} style={styles.logoRight} /> : null}
             <Text style={styles.invoiceTitleGold}>INVOICE</Text>
             <Text style={styles.invoiceNumber}>{invoice.invoice_number}</Text>
             <Text style={styles.dateLabel}>TANGGAL</Text>

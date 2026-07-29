@@ -3,6 +3,7 @@ import { Upload, Save, X, Edit, Building2, MapPin, Phone, Mail, FileText, Credit
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import {
   CompanyProfile,
   defaultCompanyProfile,
@@ -18,9 +19,12 @@ interface Props {
 }
 
 export function CompanyProfileSection({ onSave }: Props) {
+  const { toast } = useToast();
   const [profile, setProfile] = useState<CompanyProfile>(defaultCompanyProfile);
   const [saved, setSaved] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [uploadingField, setUploadingField] = useState<"logoBase64" | "logoRightBase64" | "signatureBase64" | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   
   const logoInputRef = useRef<HTMLInputElement>(null);
   const logoRightInputRef = useRef<HTMLInputElement>(null);
@@ -39,6 +43,7 @@ export function CompanyProfileSection({ onSave }: Props) {
 
   const handleSave = async () => {
     try {
+      setIsSaving(true);
       const savedProfile = await saveCompanyProfileToApi(profile);
       saveCompanyProfile(savedProfile);
       setProfile(savedProfile);
@@ -46,9 +51,19 @@ export function CompanyProfileSection({ onSave }: Props) {
       setIsEditing(false);
       setTimeout(() => setSaved(false), 2000);
       onSave?.();
+      toast({
+        title: "Profil tersimpan",
+        description: "Profil perusahaan berhasil disimpan ke database.",
+      });
     } catch (err) {
       console.error(err);
-      alert("Gagal menyimpan profil perusahaan ke database.");
+      toast({
+        title: "Gagal menyimpan",
+        description: "Profil perusahaan tidak bisa disimpan ke database.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -57,30 +72,52 @@ export function CompanyProfileSection({ onSave }: Props) {
     setIsEditing(false);
   };
 
-  const uploadToBase64 = async (file: File): Promise<string> => {
-    const base64 = await fileToBase64(file);
-    return base64;
+  const persistImageField = async (
+    field: "logoBase64" | "logoRightBase64" | "signatureBase64",
+    value: string
+  ) => {
+    const nextProfile = { ...profile, [field]: value };
+    setProfile(nextProfile);
+    setUploadingField(field);
+    try {
+      const savedProfile = await saveCompanyProfileToApi(nextProfile);
+      saveCompanyProfile(savedProfile);
+      setProfile(savedProfile);
+      toast({
+        title: "Gambar tersimpan",
+        description: "Perubahan gambar sudah disimpan ke database.",
+      });
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Upload gagal",
+        description: "Gambar tidak berhasil disimpan ke database.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingField(null);
+    }
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = await uploadToBase64(file);
-    setProfile((prev) => ({ ...prev, logoBase64: url }));
+    const url = await fileToBase64(file);
+    await persistImageField("logoBase64", url);
   };
 
   const handleLogoRightUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = await uploadToBase64(file);
-    setProfile((prev) => ({ ...prev, logoRightBase64: url }));
+    const url = await fileToBase64(file);
+    await persistImageField("logoRightBase64", url);
   };
 
   const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = await uploadToBase64(file);
-    setProfile((prev) => ({ ...prev, signatureBase64: url }));
+    const url = await fileToBase64(file);
+    await persistImageField("signatureBase64", url);
   };
 
   if (!isEditing) {
@@ -313,8 +350,14 @@ export function CompanyProfileSection({ onSave }: Props) {
                 className="rounded-lg border-2 border-dashed border-muted-foreground/25 bg-background flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-primary/40 transition-colors p-4"
                 onClick={() => logoInputRef.current?.click()}
               >
-                <Upload className="h-5 w-5 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Upload logo kiri</p>
+                {uploadingField === "logoBase64" ? (
+                  <p className="text-xs text-muted-foreground">Menyimpan...</p>
+                ) : (
+                  <>
+                    <Upload className="h-5 w-5 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">Upload logo kiri</p>
+                  </>
+                )}
               </div>
             )}
             <input
@@ -348,8 +391,14 @@ export function CompanyProfileSection({ onSave }: Props) {
                 className="rounded-lg border-2 border-dashed border-muted-foreground/25 bg-background flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-primary/40 transition-colors p-4"
                 onClick={() => logoRightInputRef.current?.click()}
               >
-                <Upload className="h-5 w-5 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Upload logo kanan</p>
+                {uploadingField === "logoRightBase64" ? (
+                  <p className="text-xs text-muted-foreground">Menyimpan...</p>
+                ) : (
+                  <>
+                    <Upload className="h-5 w-5 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">Upload logo kanan</p>
+                  </>
+                )}
               </div>
             )}
             <input
@@ -383,8 +432,14 @@ export function CompanyProfileSection({ onSave }: Props) {
                 className="rounded-lg border-2 border-dashed border-muted-foreground/25 bg-background flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-primary/40 transition-colors p-4"
                 onClick={() => signatureInputRef.current?.click()}
               >
-                <Upload className="h-5 w-5 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Upload TTD</p>
+                {uploadingField === "signatureBase64" ? (
+                  <p className="text-xs text-muted-foreground">Menyimpan...</p>
+                ) : (
+                  <>
+                    <Upload className="h-5 w-5 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">Upload TTD</p>
+                  </>
+                )}
               </div>
             )}
             <input
@@ -403,9 +458,9 @@ export function CompanyProfileSection({ onSave }: Props) {
         <Button type="button" variant="ghost" onClick={handleCancel}>
           Batal
         </Button>
-        <Button type="button" onClick={handleSave} className="font-semibold px-5">
+        <Button type="button" onClick={handleSave} className="font-semibold px-5" disabled={isSaving || uploadingField !== null}>
           <Save className="h-4 w-4 mr-2" />
-          Simpan Profil Perusahaan
+          {isSaving ? "Menyimpan..." : "Simpan Profil Perusahaan"}
         </Button>
       </div>
     </section>

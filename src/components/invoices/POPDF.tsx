@@ -25,6 +25,16 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     flex: 1,
   },
+  headerRight: {
+    alignItems: "flex-end",
+    alignSelf: "flex-end",
+  },
+  logoRight: {
+    width: 80,
+    height: 40,
+    objectFit: "contain",
+    marginBottom: 4,
+  },
   logoLeft: {
     width: 80,
     height: 45,
@@ -306,7 +316,8 @@ export const POPDF = ({ invoice, company, includePpn }: Props) => {
               )}
             </View>
           </View>
-          <View style={{ alignItems: "flex-end", alignSelf: "flex-end" }}>
+          <View style={styles.headerRight}>
+            {company.logoRightBase64 ? <Image src={company.logoRightBase64} style={styles.logoRight} /> : null}
             <Text style={{ fontSize: 8.5, fontFamily: "Times-Bold" }}>Authorized Dealer of Jayamix</Text>
           </View>
         </View>

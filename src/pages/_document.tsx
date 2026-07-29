@@ -14,6 +14,7 @@ export default function Document() {
 
         {/* iOS PWA — standalone mode, no browser chrome */}
         <link rel="apple-touch-icon" href="/icons/icon-512.png" />
+        <link rel="icon" href="/logo.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Invoice Manager" />
